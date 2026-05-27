@@ -17,3 +17,16 @@ nash_viz_output.png
 # IDE
 .vscode/
 .idea/
+
+# Claude Code local settings (contains personal paths)
+.claude/
+
+# Environment
+.env
+.env.*
+
+# Test outputs
+test_results/
+
+# Lock file (contains machine-specific paths)
+nash-cli/uv.lock
