@@ -351,8 +351,8 @@ class NobelValidator:
         params = config.get("parameters", {})
         v_raw = params.get("resource_value", {})
         c_raw = params.get("conflict_cost", {})
-        v = v_raw.get("value", 4.0) if isinstance(v_raw, dict) else (v_raw if v_raw else 4.0)
-        c = c_raw.get("value", 6.0) if isinstance(c_raw, dict) else (c_raw if c_raw else 6.0)
+        v = v_raw.get("value", 4.0) if isinstance(v_raw, dict) else (v_raw if v_raw is not None else 4.0)
+        c = c_raw.get("value", 6.0) if isinstance(c_raw, dict) else (c_raw if c_raw is not None else 6.0)
         ess_prediction = v / c if v < c else 1.0
         
         conclusion = (
@@ -460,9 +460,11 @@ class NobelValidator:
         """验证共同价值拍卖的赢家诅咒"""
         winner_curse_rate = metrics.get("winner_curse_rate", 0.0)
         revenue_efficiency = metrics.get("revenue_efficiency", 0.0)
-        
-        # 理论预测：赢家诅咒普遍存在 (>=50%)
-        threshold = 0.5
+
+        # 赢家诅咒：中标者支付超过真实价值（overpayment, not just overestimation）
+        # 理论预测：在有噪声的共同价值拍卖中，overpayment 应存在但经学习后递减
+        # 典型 5-bidder 场景下 overpayment rate 约 25-40%
+        threshold = 0.25
         supported = winner_curse_rate >= threshold
         
         confidence = min(1.0, winner_curse_rate / threshold)

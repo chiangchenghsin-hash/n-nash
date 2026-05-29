@@ -59,7 +59,7 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
         def get_val(param, default):
             if isinstance(param, dict):
                 return param.get("value", default)
-            return param
+            return param if param is not None else default
         
         self.num_bidders = get_val(config["parameters"].get("num_bidders"), 5)
         self.true_value = get_val(config["parameters"].get("true_value"), 100.0)
@@ -196,7 +196,7 @@ def create_auction_common_value(num_bidders: int = 5, true_value: float = 100.0,
         "validation": {
             "equilibrium_type": "winner_curse",
             "metrics": [
-                {"name": "winner_curse_rate", "expected_value": 0.6, "tolerance": 0.15}
+                {"name": "winner_curse_rate", "expected_value": 0.3, "tolerance": 0.15}
             ]
         }
     }

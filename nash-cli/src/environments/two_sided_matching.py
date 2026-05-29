@@ -21,7 +21,7 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
         def get_val(param, default):
             if isinstance(param, dict):
                 return param.get("value", default)
-            return param
+            return param if param is not None else default
         
         self.num_men = get_val(config["parameters"].get("num_men"), 10)
         self.num_women = get_val(config["parameters"].get("num_women"), 10)

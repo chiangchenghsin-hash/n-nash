@@ -43,7 +43,7 @@ class PublicGoodsEnvironment(BaseEnvironment):
         def get_val(param, default):
             if isinstance(param, dict):
                 return param.get("value", default)
-            return param
+            return param if param is not None else default
         
         self.num_agents = get_val(config["parameters"].get("num_agents"), 20)
         self.endowment = get_val(config["parameters"].get("endowment"), 10.0)

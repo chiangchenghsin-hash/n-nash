@@ -149,10 +149,13 @@ def _extract_time_series(history, env_type):
         for k in series:
             series[k].append(entry.get(k, None))
 
-    # Remove any series that are all None
-    return {k: [v for v in vals if v is not None]
-            for k, vals in series.items()
-            if any(x is not None for x in vals)}
+    # Remove any series that are all None; convert remaining Nones to NaN
+    # so matplotlib skips them while preserving positional alignment
+    result = {}
+    for k, v in series.items():
+        if any(x is not None for x in v):
+            result[k] = [x if x is not None else float('nan') for x in v]
+    return result
 
 
 def _viz_single(data, key, output_path, plt, title, color):

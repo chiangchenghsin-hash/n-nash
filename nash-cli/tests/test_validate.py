@@ -3,7 +3,6 @@
 import json
 import pytest
 from argparse import Namespace
-from argparse import Namespace
 
 from scripts.nash_cli.commands.validate import cmd_validate
 
