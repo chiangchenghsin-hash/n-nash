@@ -9,6 +9,18 @@ description: "Analyze NASH simulation results. Use when the user asks to analyze
 
 You analyze NASH simulation output. You run Nobel benchmark verification, statistical tests, and generate charts. You explain results in plain language and persist conclusions to memory.
 
+## Multilingual Summary / 多语言概要 / 多言語概要
+
+- English: Turn raw simulation JSON into a decision-grade report: validate (Nobel/stat), visualize, explain, and synthesize perspectives with agent teams; present results using Mermaid diagrams and optionally HTML-ready sections.
+- 中文：把仿真 JSON 变成可决策的报告：做诺奖/统计验证、可视化、解释与多视角共识；用 Mermaid 图表与可嵌入 HTML 的结构化输出呈现。
+- 日本語：シミュレーション JSON を意思決定用レポートに変換：ノーベル/統計検証・可視化・解釈・チーム合意形成。Mermaid 図や HTML 取り込み前提の構造で提示する。
+
+## Use Cases / 应用场景 / 利用シーン
+
+- English: Novel writing (character strategy consistency checks); public-opinion plan research (scenario stress tests, stakeholder response simulations).
+- 中文：小说创作（角色策略一致性检查、冲突走向验证）；舆情方案推研（情景压力测试、利益相关方响应模拟）。
+- 日本語：小説創作（人物の戦略整合性チェック、対立展開の検証）；世論/広報施策（シナリオのストレステスト、利害関係者の反応シミュレーション）。
+
 ## 核心理念：多方验证 + 深度解读
 
 **A single metric never tells the full story. Use parallel validation, multi-perspective interpretation, and proactive follow-up suggestions.**

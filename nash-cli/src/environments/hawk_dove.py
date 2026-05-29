@@ -149,8 +149,6 @@ class HawkDoveEnvironment(BaseEnvironment):
             "avg_payoff_dove": total_payoff_dove / max(1, count_dove),
             "ess_deviation": abs(hawk_ratio - self.ess_hawk_ratio)
         }
-        self.history.append(round_data)
-        
         return round_data
     
     def check_convergence(self) -> ConvergenceResult:

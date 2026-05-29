@@ -9,6 +9,18 @@ description: "Use when the user asks what game models exist, wants to classify a
 
 > **Memory:** This skill uses Claude Code's native memory system (`mcp__memory__*`) for context persistence and self-evolution. No additional MCP setup needed.
 
+## Multilingual Summary / 多语言概要 / 多言語概要
+
+- English: Classify a real-world situation into an existing game-theory model; if a known model fits, route to simulation; otherwise coordinate parallel research via subagents/agent teams and propose a modeling plan.
+- 中文：将现实问题分类到现有博弈模型；能匹配则进入脚本仿真与均衡验证；不能匹配则用 subagents/agent teams 并行调研与建模检讨。
+- 日本語：現実のケースを既存のゲーム理論モデルに分類し、適合するならシミュレーションへ。適合が弱い場合は subagents / agent teams で並列調査し、モデル化方針を提案する。
+
+## Use Cases / 应用场景 / 利用シーン
+
+- English: Novel writing (multi-character incentives, conflict/cooperation arcs); public-opinion plan research (stakeholder strategy, information asymmetry, repeated interactions).
+- 中文：小说创作（多角色动机、冲突/合作走向）；舆情方案推研（多方博弈、信息不对称、重复互动的策略演化）。
+- 日本語：小説創作（複数人物の動機・対立/協力の推移）；世論/広報施策の検討（利害関係者の戦略、情報の非対称、反復相互作用）。
+
 ## 核心理念：Agent Team 威力全开
 
 你不是一个人在战斗。你是 agent team 的协调者。每当面对复杂问题：

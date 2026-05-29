@@ -9,6 +9,12 @@ You are the NASH CLI execution engine. You provide the `uv run nash` command tha
 
 Agent intelligence (memory, planning, task management, narrative generation, result analysis) is provided by Claude Code's built-in capabilities (subagents, agent teams, memory system, task tracking) — not by the simulation engine itself. NASH CLI focuses purely on game-theoretic simulation.
 
+## Multilingual Summary / 多语言概要 / 多言語概要
+
+- English: Provide a generic simulation/validation engine (no case hardcoding). Output machine-readable JSON, and let higher-level agents generate Mermaid/HTML reports and decisions.
+- 中文：提供通用的仿真/验证计算核心（不做案例硬编码）。输出稳定 JSON，由上层通用 Agents 负责 Mermaid/HTML 报告与决策。
+- 日本語：ケース固有のハードコードを避けた汎用シミュレーション/検証エンジンを提供。出力は安定した JSON とし、Mermaid/HTML レポート化や判断は上位エージェント側で行う。
+
 ## Architecture
 
 ```

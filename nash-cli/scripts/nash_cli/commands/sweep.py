@@ -3,13 +3,12 @@
 
 import json
 import sys
-import os
 import copy
-import importlib
-import inspect
 import random
 
 import numpy as np
+
+from scripts.nash_cli.commands import get_environment_spec, list_presets
 
 
 def cmd_sweep(args) -> dict:
@@ -31,6 +30,13 @@ def cmd_sweep(args) -> dict:
     param_values = [p_min + i * p_step for i in range(num_steps)]
 
     env_type = base_config.get("environment", {}).get("type", "")
+    spec = get_environment_spec(env_type) if env_type else None
+    if not spec:
+        return {
+            "error": f"Unknown environment type in config: {env_type}",
+            "available_presets": list_presets(),
+        }
+
     print(f"[nash sweep] {len(param_values)} configs for '{args.param}' in {env_type}: "
           f"{param_values[0]:.2f} -> {param_values[-1]:.2f} (step={p_step})", file=sys.stderr)
 
@@ -48,7 +54,7 @@ def cmd_sweep(args) -> dict:
         print(f"  [{i+1}/{len(param_values)}] {args.param}={value}", file=sys.stderr)
 
         try:
-            run_result = _run_environment_config(cfg, args.rounds)
+            run_result = _run_environment_config(spec, cfg, args.rounds)
             final_metrics = run_result.get("final_metrics", {})
             results.append({
                 "index": i,
@@ -85,61 +91,6 @@ def _set_nested(d: dict, key: str, value):
     d[parts[-1]] = value
 
 
-def _run_environment_config(config: dict, rounds: int) -> dict:
-    _CREATOR_MODULES = {
-        "hawk_dove": "src.environments.hawk_dove",
-        "prisoners_dilemma": "src.environments.repeated_prisoners_dilemma",
-        "public_goods": "src.environments.public_goods",
-        "common_pool": "src.environments.common_pool_resource",
-        "vickrey": "src.environments.vickrey_auction",
-        "spence": "src.environments.spence_signaling",
-        "matching": "src.environments.two_sided_matching",
-        "auction_common_value": "src.environments.auction_common_value",
-    }
-
-    _CREATOR_FUNCTIONS = {
-        "hawk_dove": "create_hawk_dove",
-        "prisoners_dilemma": "create_repeated_prisoners_dilemma",
-        "public_goods": "create_public_goods",
-        "common_pool": "create_common_pool_resource",
-        "vickrey": "create_vickrey_auction",
-        "spence": "create_spence_signaling",
-        "matching": "create_two_sided_matching",
-        "auction_common_value": "create_auction_common_value",
-    }
-
-    env_type = config.get("environment", {}).get("type", "")
-    module_name = _CREATOR_MODULES.get(env_type)
-    func_name = _CREATOR_FUNCTIONS.get(env_type)
-
-    if not module_name or not func_name:
-        raise ValueError(f"Unknown environment type: {env_type}")
-
-    mod = importlib.import_module(module_name)
-    creator = getattr(mod, func_name)
-
-    sig = inspect.signature(creator)
-    creator_kwargs = {}
-    for param_name in sig.parameters:
-        if param_name in ("num_agents", "num_bidders"):
-            val = config.get("parameters", {}).get("num_agents", {})
-            creator_kwargs[param_name] = val.get("value", 100) if isinstance(val, dict) else val
-        elif param_name == "num_men":
-            val = config.get("parameters", {}).get("num_agents", {})
-            n = val.get("value", 50) if isinstance(val, dict) else val
-            creator_kwargs[param_name] = max(1, n // 2)
-        elif param_name == "num_women":
-            val = config.get("parameters", {}).get("num_agents", {})
-            n = val.get("value", 50) if isinstance(val, dict) else val
-            creator_kwargs[param_name] = max(1, n // 2)
-        elif param_name == "num_rounds":
-            creator_kwargs[param_name] = rounds
-        elif param_name in ("resource_value", "conflict_cost", "learning_rate",
-                           "discount_factor", "exploration_rate", "multiplier",
-                           "regeneration_rate", "initial_resource"):
-            param_val = config.get("parameters", {}).get(param_name, {})
-            creator_kwargs[param_name] = param_val.get("value", 1.0) if isinstance(param_val, dict) else param_val
-
-    env, _ = creator(**creator_kwargs)
-    result = env.run_simulation(max_rounds=rounds)
-    return result
+def _run_environment_config(spec, config: dict, rounds: int) -> dict:
+    env = spec.env_class(config)
+    return env.run_simulation(max_rounds=rounds)

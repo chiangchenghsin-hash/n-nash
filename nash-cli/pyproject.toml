@@ -4,7 +4,7 @@ version = "1.0.0"
 description = "NASH CLI — Game theory simulation & Nobel equilibrium validation toolkit"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-readme = "README.md"
+readme = "../README.md"
 keywords = [
     "game theory",
     "nash equilibrium",

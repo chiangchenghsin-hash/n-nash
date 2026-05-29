@@ -6,6 +6,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
+import sys
 
 
 @dataclass
@@ -119,7 +120,10 @@ class BaseEnvironment(ABC):
             if self.current_round > 50 and self.current_round % 50 == 0:
                 convergence = self.check_convergence()
                 if convergence.converged:
-                    print(f"✓ 收敛到{convergence.metric_name}均衡 (round {self.current_round})")
+                    print(
+                        f"✓ 收敛到{convergence.metric_name}均衡 (round {self.current_round})",
+                        file=sys.stderr,
+                    )
                     break
         
         return self._generate_result()
@@ -132,7 +136,7 @@ class BaseEnvironment(ABC):
         return {
             "environment_type": self.environment_type,
             "total_rounds": self.current_round,
-            "converged": convergence.converged,
+            "converged": bool(convergence.converged),
             "convergence_message": convergence.message,
             "final_metrics": final_metrics,
             "metrics_history": self.metrics_history,

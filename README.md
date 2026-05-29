@@ -68,6 +68,28 @@ pip install -e .
 uv run nash env list
 ```
 
+### Skills 安装（通用 Agents）
+
+> 说明：NASH 的“Skill 编排层”是给通用 Agents 用的（subagents / agent teams / 调研 / Mermaid/HTML 报告生成）。不同产品的 Skill 安装入口不同，因此这里提供**通用导入方式**：把仓库里的 `*/SKILL.md` 作为 5 个技能分别导入。
+
+**中文（通用导入步骤）**
+- 在你的 Agent 产品里，新建/导入 5 个技能：`nash-env`、`nash-run`、`nash-analyze`、`nash-cli`、`nash-game-theory`。
+- 每个技能的内容来源：对应目录下的 `SKILL.md`（例如 `nash-env/SKILL.md`）。
+- 确保该 Agent 允许运行本地命令；涉及仿真时，技能会在 `nash-cli/` 下调用 `uv run nash ...`（或退化为 `python scripts/nash_cli/main.py ...`）。
+- 安装完成后，用任意 Agent 触发 `nash-cli` 执行：`uv run nash env list`，确认能返回 JSON。
+
+**English (Generic Import Steps)**
+- In your agent product, create/import 5 skills: `nash-env`, `nash-run`, `nash-analyze`, `nash-cli`, `nash-game-theory`.
+- Use the corresponding `SKILL.md` files as the skill source (e.g. `nash-env/SKILL.md`).
+- Make sure the agent is allowed to run local commands; simulation-related skills run the CLI from `nash-cli/` using `uv run nash ...` (or `python scripts/nash_cli/main.py ...` as fallback).
+- Quick check: run `uv run nash env list` and confirm it returns JSON.
+
+**日本語（汎用インポート手順）**
+- エージェント製品側で 5 つのスキル（`nash-env` / `nash-run` / `nash-analyze` / `nash-cli` / `nash-game-theory`）を新規作成またはインポートします。
+- スキル本文は各ディレクトリの `SKILL.md` を使用します（例：`nash-env/SKILL.md`）。
+- ローカルコマンド実行を許可し、シミュレーション時は `nash-cli/` で `uv run nash ...`（または `python scripts/nash_cli/main.py ...`）を実行できるようにします。
+- 動作確認：`uv run nash env list` が JSON を返すことを確認します。
+
 ### 第一个实验
 
 ```bash

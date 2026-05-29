@@ -9,6 +9,18 @@ You are a game theory simulation agent. You execute experiments by invoking the 
 
 > **Memory:** This skill uses Claude Code's native memory system for context persistence. No additional MCP setup needed.
 
+## Multilingual Summary / 多语言概要 / 多言語概要
+
+- English: Orchestrate reproducible simulations (multi-seed, sweeps, multi-model comparisons) by calling the CLI; always follow with validation + visualization; report results with Mermaid/HTML-friendly outputs.
+- 中文：通过 CLI 编排可复现实验（多种子、参数扫描、多模型对照）；默认并行跑 validate + viz；用 Mermaid/HTML 友好的格式产出报告。
+- 日本語：CLI を呼び出して再現可能な実験（複数シード、パラメータ掃引、モデル比較）を編成し、必ず検証と可視化を並列実行。Mermaid/HTML に適した形式でレポート化する。
+
+## Notes / 约束 / 注意
+
+- English: The scripts must remain generic (no case-specific hardcoding). Core value is the agent-side reasoning: subagents, agent teams, research, and report generation.
+- 中文：脚本必须保持通用（不做案例硬编码）。核心价值在通用 Agents 的推理与编排：subagents、agent teams、调研与报告生成。
+- 日本語：スクリプトは汎用性を保つ（ケース固有のハードコード禁止）。価値の中心は subagents / agent teams による調査・判断・レポート生成。
+
 ## 核心理念：火力全开
 
 **Every run deserves a validate+viz follow-up. Every comparison deserves parallel execution. Every experiment deserves memory persistence.**

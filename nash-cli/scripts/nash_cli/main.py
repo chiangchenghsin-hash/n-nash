@@ -17,6 +17,7 @@ import argparse
 import json
 import sys
 import os
+import dataclasses
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -28,6 +29,13 @@ if _project_root not in sys.path:
 
 
 def main():
+    preset_choices = None
+    try:
+        from scripts.nash_cli.commands import list_presets
+        preset_choices = list_presets()
+    except Exception:
+        preset_choices = None
+
     parser = argparse.ArgumentParser(
         prog="nash",
         description="NASH CLI — Game theory simulation & validation toolkit"
@@ -36,11 +44,10 @@ def main():
 
     # -- run --
     p_run = sub.add_parser("run", help="Run a game theory simulation")
-    p_run.add_argument("--preset", type=str, required=True,
-                       choices=["hawk_dove", "prisoners_dilemma", "public_goods",
-                                "common_pool", "vickrey", "spence", "matching",
-                                "auction_common_value"],
-                       help="Game environment preset")
+    if preset_choices:
+        p_run.add_argument("--preset", type=str, required=True, choices=preset_choices, help="Game environment preset")
+    else:
+        p_run.add_argument("--preset", type=str, required=True, help="Game environment preset")
     p_run.add_argument("--agents", type=int, default=100, help="Number of agents")
     p_run.add_argument("--rounds", type=int, default=100, help="Simulation rounds")
     p_run.add_argument("--output", "-o", type=str, help="Output JSON file path")
@@ -84,8 +91,10 @@ def main():
     p_cfg = sub.add_parser("config", help="Environment config helpers")
     p_cfg_sub = p_cfg.add_subparsers(dest="config_action", required=True)
     p_cfg_template = p_cfg_sub.add_parser("template", help="Generate environment config template")
-    p_cfg_template.add_argument("--preset", type=str, required=True,
-                                help="Environment preset name (hawk_dove, prisoners_dilemma, etc.)")
+    if preset_choices:
+        p_cfg_template.add_argument("--preset", type=str, required=True, choices=preset_choices, help="Environment preset name")
+    else:
+        p_cfg_template.add_argument("--preset", type=str, required=True, help="Environment preset name")
     p_cfg_template.add_argument("--output", "-o", type=str, help="Output file path")
     p_cfg_validate = p_cfg_sub.add_parser("validate", help="Validate an environment config file")
     p_cfg_validate.add_argument("file", type=str, help="Config JSON file to validate")
@@ -131,25 +140,38 @@ def _dispatch(args) -> dict:
 def _output(result: dict, args):
     if args.command == "viz":
         if result and "error" not in result:
-            print(json.dumps(result))
+            print(json.dumps(result, ensure_ascii=True, default=_json_default))
         else:
-            print(json.dumps(result), file=sys.stderr)
+            print(json.dumps(result, ensure_ascii=True, default=_json_default), file=sys.stderr)
         return
 
     out_path = getattr(args, "output", None)
 
     if out_path:
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(result, f, indent=2, ensure_ascii=False, default=str)
-        print(json.dumps({"status": "ok", "output": os.path.abspath(out_path)}))
+            json.dump(result, f, indent=2, ensure_ascii=False, default=_json_default)
+        print(json.dumps({"status": "ok", "output": os.path.abspath(out_path)}, ensure_ascii=True))
     else:
-        print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
+        print(json.dumps(result, indent=2, ensure_ascii=True, default=_json_default))
 
 
 def _error(msg: str):
     err = {"error": msg, "status": "failed"}
-    print(json.dumps(err, indent=2), file=sys.stderr)
+    print(json.dumps(err, indent=2, ensure_ascii=True, default=_json_default), file=sys.stderr)
     sys.exit(1)
+
+
+def _json_default(value):
+    if dataclasses.is_dataclass(value):
+        return dataclasses.asdict(value)
+    if isinstance(value, set):
+        return list(value)
+    if hasattr(value, "item") and type(value).__module__ == "numpy":
+        return value.item()
+    if hasattr(value, "tolist") and callable(value.tolist) and type(value).__module__ == "numpy":
+        return value.tolist()
+    return str(value)
+
 
 
 if __name__ == "__main__":

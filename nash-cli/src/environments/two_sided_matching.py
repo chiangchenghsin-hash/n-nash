@@ -83,8 +83,6 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
             "blocking_pairs": blocking_pairs,
             "stability_index": 1.0 - blocking_pairs / (self.num_men * self.num_women)
         }
-        self.history.append(round_data)
-        
         return round_data
     
     def _count_blocking_pairs(self, matches: List[tuple]) -> int:

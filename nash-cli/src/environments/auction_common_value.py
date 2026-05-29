@@ -122,8 +122,6 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
             "avg_estimate": np.mean([b.true_value_estimate for b in self.bidders]),
             "avg_discount": np.mean([b.discount_factor for b in self.bidders])
         }
-        self.history.append(round_data)
-        
         return round_data
     
     def check_convergence(self) -> ConvergenceResult:

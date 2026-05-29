@@ -88,8 +88,6 @@ class PublicGoodsEnvironment(BaseEnvironment):
             "total_contribution": total_contribution,
             "avg_payoff": np.mean(payoffs)
         }
-        self.history.append(round_data)
-        
         return round_data
     
     def check_convergence(self) -> ConvergenceResult:
@@ -136,7 +134,14 @@ class PublicGoodsEnvironment(BaseEnvironment):
 
 def create_public_goods(num_agents: int = 20, endowment: float = 10.0, multiplier: float = 1.6) -> tuple:
     standard_config = {
-        "environment": {"type": "public_goods"},
+        "environment": {
+            "type": "public_goods",
+            "nobel_reference": {
+                "year": 2009,
+                "laureates": ["Elinor Ostrom"],
+                "contribution": "对公共物品与公共资源的治理研究"
+            },
+        },
         "parameters": {
             "num_agents": {"value": num_agents},
             "endowment": {"value": endowment},

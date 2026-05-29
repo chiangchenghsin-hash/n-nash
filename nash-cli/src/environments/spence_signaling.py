@@ -131,8 +131,6 @@ class SpenceSignalingEnvironment(BaseEnvironment):
             "avg_wage_high": self._avg_wage_by_type("high"),
             "avg_wage_low": self._avg_wage_by_type("low")
         }
-        self.history.append(round_data)
-        
         return round_data
     
     def _calculate_separation_index(self) -> float:
