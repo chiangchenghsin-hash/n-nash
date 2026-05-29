@@ -39,15 +39,10 @@ class PublicGoodsEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
-        self.num_agents = get_val(config["parameters"].get("num_agents"), 20)
-        self.endowment = get_val(config["parameters"].get("endowment"), 10.0)
-        self.multiplier = get_val(config["parameters"].get("multiplier"), 1.6)
+
+        self.num_agents = self._p("num_agents", 20)
+        self.endowment = self._p("endowment", 10.0)
+        self.multiplier = self._p("multiplier", 1.6)
         
         self.agents: List[Agent] = []
         self.history: List[Dict[str, Any]] = []

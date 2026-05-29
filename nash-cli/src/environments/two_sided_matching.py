@@ -17,14 +17,9 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
-        self.num_men = get_val(config["parameters"].get("num_men"), 10)
-        self.num_women = get_val(config["parameters"].get("num_women"), 10)
+
+        self.num_men = self._p("num_men", 10)
+        self.num_women = self._p("num_women", 10)
         
         # 随机生成偏好列表
         self.men_prefs = [np.random.permutation(self.num_women).tolist() 

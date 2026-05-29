@@ -55,15 +55,10 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
-        self.num_bidders = get_val(config["parameters"].get("num_bidders"), 5)
-        self.true_value = get_val(config["parameters"].get("true_value"), 100.0)
-        self.noise_std = get_val(config["parameters"].get("noise_std"), 15.0)
+
+        self.num_bidders = self._p("num_bidders", 5)
+        self.true_value = self._p("true_value", 100.0)
+        self.noise_std = self._p("noise_std", 15.0)
         
         self.bidders: List[Bidder] = []
         self.history: List[Dict[str, Any]] = []

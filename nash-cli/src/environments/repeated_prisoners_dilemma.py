@@ -54,42 +54,36 @@ class RepeatedPrisonersDilemmaEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
+
         # 收益参数
-        self.T = self._get_param_value(config["parameters"].get("temptation", 5.0))
-        self.R = self._get_param_value(config["parameters"].get("reward", 3.0))
-        self.P = self._get_param_value(config["parameters"].get("punishment", 1.0))
-        self.S = self._get_param_value(config["parameters"].get("sucker", 0.0))
-        
+        self.T = self._p("temptation", 5.0)
+        self.R = self._p("reward", 3.0)
+        self.P = self._p("punishment", 1.0)
+        self.S = self._p("sucker", 0.0)
+
         # 折扣因子
-        self.delta = self._get_param_value(config["parameters"].get("discount_factor", 0.95))
-        
+        self.delta = self._p("discount_factor", 0.95)
+
         # 临界值
         self.delta_threshold = (self.T - self.R) / (self.T - self.P)
-        
+
         # 代理数量
-        self.num_agents = self._get_param_value(config["parameters"].get("num_agents", 20))
-        
+        self.num_agents = self._p("num_agents", 20)
+
         # 状态
         self.agents: List[Agent] = []
         self.history: List[Dict[str, Any]] = []
         self._interaction_history: List[Dict[str, Any]] = []
         self.cooperation_counts: Dict[int, int] = {}
-    
-    def _get_param_value(self, param: Any) -> Any:
-        """从参数配置中提取值（支持 dict 和直接值）"""
-        if isinstance(param, dict):
-            return param.get("value", param.get("default", None))
-        return param
-    
+
     def initialize_agents(self) -> None:
         """初始化代理"""
         for i in range(self.num_agents):
             agent = Agent(
                 agent_id=i,
                 q_values={"cooperate": 3.0, "defect": 1.0},
-                learning_rate=self._get_param_value(self.parameters.get("learning_rate", 0.1)),
-                exploration_rate=self._get_param_value(self.parameters.get("exploration_rate", 0.1))
+                learning_rate=self._p("learning_rate", 0.1),
+                exploration_rate=self._p("exploration_rate", 0.1)
             )
             self.agents.append(agent)
             self.cooperation_counts[i] = 0

@@ -79,6 +79,19 @@ class BaseEnvironment(ABC):
         """
         pass
     
+    def _p(self, key: str, default=None):
+        """Centralized parameter extraction (Mesa Scenario pattern).
+
+        Reads from self.parameters (already flat after _extract_parameters).
+        All subclasses should use this instead of defining their own get_val().
+        """
+        value = self.parameters.get(key, default)
+        if value is None:
+            return default
+        if isinstance(value, dict):
+            return value.get("value", default)
+        return value
+
     def _extract_parameters(self, params_config: Dict[str, Any]) -> Dict[str, Any]:
         """Extract parameter values from config — accepts both nested {'key': {'value': X}} and flat {'key': X} formats."""
         result = {}

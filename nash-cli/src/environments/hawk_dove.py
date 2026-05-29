@@ -33,16 +33,11 @@ class HawkDoveEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
+
         # 参数
-        self.V = get_val(config["parameters"].get("resource_value"), 4.0)  # 资源价值
-        self.C = get_val(config["parameters"].get("conflict_cost"), 6.0)   # 冲突成本
-        self.num_agents = get_val(config["parameters"].get("num_agents"), 100)
+        self.V = self._p("resource_value", 4.0)  # 资源价值
+        self.C = self._p("conflict_cost", 6.0)   # 冲突成本
+        self.num_agents = self._p("num_agents", 100)
         
         # 理论预测的 ESS 比例
         if self.V > self.C:

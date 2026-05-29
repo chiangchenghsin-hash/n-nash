@@ -52,21 +52,15 @@ class CommonPoolResourceEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        # 辅助方法：从 dict 中提取值
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
+
         # 资源参数
-        self.initial_resource = get_val(config["parameters"].get("initial_resource"), 1000.0)
-        self.regeneration_rate = get_val(config["parameters"].get("regeneration_rate"), 0.05)
-        self.max_resource = get_val(config["parameters"].get("max_resource"), 1000.0)
+        self.initial_resource = self._p("initial_resource", 1000.0)
+        self.regeneration_rate = self._p("regeneration_rate", 0.05)
+        self.max_resource = self._p("max_resource", 1000.0)
         self.current_resource = self.initial_resource
-        
+
         # 代理参数
-        self.num_agents = get_val(config["parameters"].get("num_agents"), 20)
+        self.num_agents = self._p("num_agents", 20)
         
         # 初始化代理
         self.agents: List[Agent] = []

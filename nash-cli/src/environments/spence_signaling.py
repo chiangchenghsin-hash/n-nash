@@ -75,16 +75,11 @@ class SpenceSignalingEnvironment(BaseEnvironment):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        
-        def get_val(param, default):
-            if isinstance(param, dict):
-                return param.get("value", default)
-            return param if param is not None else default
-        
+
         # 参数
-        self.num_workers = get_val(config["parameters"].get("num_workers"), 100)
-        self.num_firms = get_val(config["parameters"].get("num_firms"), 10)
-        self.high_ability_threshold = get_val(config["parameters"].get("high_ability_threshold"), 0.5)
+        self.num_workers = self._p("num_workers", 100)
+        self.num_firms = self._p("num_firms", 10)
+        self.high_ability_threshold = self._p("high_ability_threshold", 0.5)
         
         # 状态
         self.workers: List[Worker] = []
