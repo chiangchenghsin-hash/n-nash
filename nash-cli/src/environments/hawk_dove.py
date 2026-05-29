@@ -15,18 +15,6 @@ class Agent:
     agent_id: int
     strategy: str = "dove"  # "hawk" 或 "dove"
     payoff: float = 0.0
-    
-    def choose_strategy(self) -> str:
-        """选择策略（简单版本：保持不变）"""
-        return self.strategy
-    
-    def update_strategy(self, opponent_strategy: str, opponent_payoff: float):
-        """根据对手策略和收益更新自己的策略"""
-        # 模仿成功者
-        if opponent_payoff > self.payoff:
-            # 以一定概率模仿对手
-            if np.random.random() < 0.3:  # 30% 模仿率
-                self.strategy = opponent_strategy
 
 
 class HawkDoveEnvironment(BaseEnvironment):

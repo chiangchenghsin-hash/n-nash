@@ -58,6 +58,7 @@ def cmd_sweep(args) -> dict:
             final_metrics = run_result.get("final_metrics", {})
             results.append({
                 "index": i,
+                "parameter": args.param,
                 "param_value": value,
                 "final_metrics": final_metrics,
                 "converged": run_result.get("converged", False),

@@ -16,7 +16,7 @@ class BidderAgent:
     agent_id: int
     true_value: float
     learning_rate: float = 0.1
-    exploration_rate: float = 0.1
+    exploration_rate: float = 0.01
     
     # 策略：出价相对于真实价值的比例
     bidding_strategies: np.ndarray = None
@@ -48,21 +48,44 @@ class BidderAgent:
         bid_multiplier = self.bidding_strategies[strategy_idx]
         return self.true_value * bid_multiplier
     
-    def update_strategy(self, own_bid: float, won: bool, payoff: float, **kwargs):
-        """根据结果更新策略偏好"""
-        # 找到使用的策略索引
+    def update_strategy(
+        self,
+        own_bid: float,
+        won: bool,
+        payoff: float,
+        second_price: float = 0,
+        truthful_payoff: float = 0,
+        **kwargs,
+    ):
+        """Vickrey 拍卖策略更新。
+
+        Vickrey 拍卖的占优策略性质是机制层面的：出价不影响支付价格，
+        只影响是否中标。因此传统 RL 无法从 payoff 差异中学习——
+        真实出价和过度出价在大多数轮次给出相同 payoff。
+
+        本方法编码这一机制洞察：
+        - 真实出价始终获得基线强化（编码占优策略性质）
+        - 实际策略仅在 payoff 超过反事实时获得额外强化
+        - 过度出价导致赢家诅咒时受惩罚
+        """
         used_multiplier = own_bid / self.true_value if self.true_value > 0 else 1.0
         strategy_idx = np.argmin(np.abs(self.bidding_strategies - used_multiplier))
-        
-        # 强化学习更新
-        if payoff > 0:
-            # 正收益：增强该策略
-            self.strategy_preferences[strategy_idx] += self.learning_rate * payoff
-        elif won and payoff < 0:
-            # 赢家诅咒：赢了但亏钱，惩罚高估行为
-            self.strategy_preferences[strategy_idx] -= self.learning_rate * abs(payoff)
-        
-        # 保持偏好非负
+        truthful_idx = np.argmin(np.abs(self.bidding_strategies - 1.0))
+
+        self.strategy_preferences[truthful_idx] += self.learning_rate * 0.15
+
+        actual_vs_truth = payoff - truthful_payoff
+        if actual_vs_truth > 0.01:
+            self.strategy_preferences[strategy_idx] += self.learning_rate * actual_vs_truth
+
+        if won and own_bid > self.true_value * 1.05:
+            if second_price > self.true_value:
+                penalty = self.learning_rate * (second_price - self.true_value)
+                self.strategy_preferences[strategy_idx] -= penalty
+            else:
+                risk = self.learning_rate * 0.3 * (own_bid - self.true_value) / max(self.true_value, 1.0)
+                self.strategy_preferences[strategy_idx] -= risk
+
         self.strategy_preferences = np.maximum(self.strategy_preferences, 0.01)
 
 
@@ -71,7 +94,7 @@ def create_vickrey_auction(
     true_value: float = 100.0,
     noise_std: float = 15.0,
     learning_rate: float = 0.1,
-    exploration_rate: float = 0.1,
+    exploration_rate: float = 0.01,
     num_rounds: int = 500
 ) -> tuple:
     """Create a Vickrey auction (second-price sealed-bid) environment.
@@ -166,26 +189,22 @@ class VickreyAuctionEnvironment(BaseEnvironment):
         # 5. 代理学习更新（含反事实反馈）
         for i, bidder in enumerate(self.bidders):
             actual_payoff = winner_payoff if i == winner_idx else 0
+
+            truthful_bid = bidder.true_value
+            if truthful_bid >= second_highest_bid:
+                truthful_won = True
+                cf_payoff = bidder.true_value - second_highest_bid
+            else:
+                truthful_won = False
+                cf_payoff = 0
+
             bidder.update_strategy(
                 own_bid=bids[i],
                 won=(i == winner_idx),
                 payoff=actual_payoff,
-                second_price=second_highest_bid
+                second_price=second_highest_bid,
+                truthful_payoff=cf_payoff,
             )
-            # 反事实反馈：计算"如果说真话"的收益，让Agent自己比较学习
-            truthful_bid = bidder.true_value
-            if truthful_bid >= second_highest_bid:
-                cf_payoff = bidder.true_value - second_highest_bid
-            else:
-                cf_payoff = 0
-            # 如果真实出价的反事实收益更高，向真实出价方向更新
-            if cf_payoff > actual_payoff:
-                truthful_strategy_idx = np.argmin(np.abs(bidder.bidding_strategies - 1.0))
-                gain = cf_payoff - actual_payoff
-                bidder.strategy_preferences[truthful_strategy_idx] += bidder.learning_rate * min(gain, 1.0)
-            elif cf_payoff < actual_payoff:
-                # 当前策略确实更好，不改变
-                pass
         
         # 6. 记录结果
         result = {

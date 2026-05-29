@@ -14,7 +14,7 @@ NASH 将经典博弈模型与现代化仿真引擎相结合，为研究人员提
 **两层架构**：
 
 - **Layer 1 -- Claude Code Agent Team**：5 个 Skill 组成的智能编排层，负责问题分类、并行实验调度、多视角结果分析和记忆持久化。
-- **Layer 2 -- Python CLI 计算核心**：基于 Mesa 的正式博弈仿真引擎，提供环境查询、模拟运行、参数扫描、统计验证和可视化等命令行工具。
+- **Layer 2 -- Python CLI 计算核心**：基于 NumPy 的多智能体博弈仿真引擎，提供环境查询、模拟运行、参数扫描、统计验证和可视化等命令行工具。
 
 **核心能力**：
 
@@ -151,7 +151,7 @@ uv run nash sweep --config cfg.json --param resource_value --range 1,10 --step 1
 
 ### 4. `nash-cli` -- Python 计算核心
 
-所有其他 Skill 依赖的计算引擎。基于 Mesa Agent-Based Modeling 框架实现 8 个博弈环境。
+所有其他 Skill 依赖的计算引擎。基于 NumPy 多智能体仿真框架实现 8 个博弈环境。
 
 CLI 命令速查：
 
@@ -182,7 +182,7 @@ CLI 命令速查：
 
 | 组件 | 技术 |
 |------|------|
-| 仿真引擎 | Mesa 2.x (Agent-Based Modeling) |
+| 仿真引擎 | NumPy (Agent-Based Simulation) |
 | 数值计算 | NumPy 1.24+, SciPy 1.10+ |
 | 可视化 | Matplotlib 3.7+ |
 | 数据模型 | Pydantic 2.x |
@@ -199,7 +199,6 @@ pydantic>=2.0.0
 numpy>=1.24.0
 scipy>=1.10.0
 matplotlib>=3.7.0
-mesa>=2.0.0
 pandas>=2.0.0
 networkx>=3.0
 pyyaml>=6.0
@@ -273,5 +272,4 @@ MIT License
 ## 相关资源
 
 - [NASH Research Workflows](NASH-RESEARCH-WORKFLOWS.md) -- 8 种研究工作流完整文档
-- [Mesa Documentation](https://mesa.readthedocs.io/) -- Agent-Based Modeling 框架
 - [Claude Code Skills](https://docs.anthropic.com/) -- Claude Code Skill 系统
