@@ -5,6 +5,12 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
 
 # Virtual environment
 .venv/
@@ -13,10 +19,21 @@ env/
 
 # Generated output
 nash_viz_output.png
+results*.json
+validation*.json
+charts*.png
+_tmp_*.json
+_tmp_*.png
+_smoke_*.json
+_smoke_*.png
+*.log
+*.tmp
 
 # IDE
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 
 # Claude Code local settings (contains personal paths)
 .claude/
