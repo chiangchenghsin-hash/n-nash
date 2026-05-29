@@ -341,15 +341,18 @@ class NobelValidator:
         """验证鹰鸽博弈 ESS"""
         hawk_ratio = metrics.get("hawk_ratio", 0.0)
         ess_deviation = metrics.get("ess_deviation", 1.0)
-        
+
         # 验证标准：与 ESS 预测偏差 < 10%
         threshold = 0.1
         supported = ess_deviation < threshold
-        
+
         confidence = 1.0 - min(1.0, ess_deviation / threshold)
-        
-        v = config["parameters"].get("resource_value", {}).get("value", 4.0)
-        c = config["parameters"].get("conflict_cost", {}).get("value", 6.0)
+
+        params = config.get("parameters", {})
+        v_raw = params.get("resource_value", {})
+        c_raw = params.get("conflict_cost", {})
+        v = v_raw.get("value", 4.0) if isinstance(v_raw, dict) else (v_raw if v_raw else 4.0)
+        c = c_raw.get("value", 6.0) if isinstance(c_raw, dict) else (c_raw if c_raw else 6.0)
         ess_prediction = v / c if v < c else 1.0
         
         conclusion = (

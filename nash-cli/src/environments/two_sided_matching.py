@@ -43,9 +43,11 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
         men_free = list(range(self.num_men))
         men_next_proposal = [0] * self.num_men
         women_partner = [-1] * self.num_women
-        
+
         while men_free:
             man = men_free.pop(0)
+            if men_next_proposal[man] >= self.num_women:
+                continue
             woman = self.men_prefs[man][men_next_proposal[man]]
             men_next_proposal[man] += 1
             

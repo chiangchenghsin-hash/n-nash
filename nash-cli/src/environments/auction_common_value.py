@@ -28,20 +28,17 @@ class Bidder:
         """出价 — 使用学习的折扣因子规避赢家诅咒"""
         self.bid = max(0, self.true_value_estimate * (1 - self.discount_factor))
 
-    def learn_from_round(self, won: bool, payoff: float, true_value: float, second_price: float):
+    def learn_from_round(self, won: bool, payoff: float, true_value: float, second_price: float, winner_payoff: float = 0.0):
         """从拍卖结果中学习，调整折扣因子"""
         self.auction_count += 1
         if won:
             if payoff < 0:
-                # 赢家诅咒！增加折扣
                 loss_ratio = abs(payoff) / max(1.0, true_value)
                 self.discount_factor = min(0.5, self.discount_factor + self.learning_rate * loss_ratio)
             else:
-                # 盈利中标，略微降低折扣
                 self.discount_factor = max(0.0, self.discount_factor - self.learning_rate * 0.05)
         else:
-            # 未中标：如果中标者盈利，我们可能出价太保守
-            if payoff > 0 and self.bid < second_price:
+            if winner_payoff > 0 and self.bid < second_price:
                 self.discount_factor = max(0.0, self.discount_factor - self.learning_rate * 0.02)
 
 
@@ -93,14 +90,16 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
         winner_idx = np.argmax(bids)
         winner = self.bidders[winner_idx]
         
-        # 二级价格：第二高出价
-        second_highest = np.sort(bids)[-2] if len(bids) > 1 else bids[0]
-        
+        # 二级价格：第二高出价（单竞拍者时支付 0）
+        second_highest = np.sort(bids)[-2] if len(bids) > 1 else 0.0
+
         # 计算赢家收益
         winner_payoff = self.true_value - second_highest
-        
-        # 检查赢家诅咒
-        overbid = winner.true_value_estimate > self.true_value
+
+        # 赢家诅咒：中标者的支付价格超过真实价值
+        winner_curse = second_highest > self.true_value
+        # 辅助指标：中标者高估了价值
+        overestimated = winner.true_value_estimate > self.true_value
 
         # 所有竞标者从本轮结果中学习
         for i, bidder in enumerate(self.bidders):
@@ -109,7 +108,8 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
                 won=(i == winner_idx),
                 payoff=actual_payoff,
                 true_value=self.true_value,
-                second_price=second_highest
+                second_price=second_highest,
+                winner_payoff=winner_payoff,
             )
 
         round_data = {
@@ -118,7 +118,8 @@ class AuctionCommonValueEnvironment(BaseEnvironment):
             "winning_bid": winner.bid,
             "second_price": second_highest,
             "winner_payoff": winner_payoff,
-            "winner_curse": overbid,
+            "winner_curse": winner_curse,
+            "overestimated": overestimated,
             "avg_estimate": np.mean([b.true_value_estimate for b in self.bidders]),
             "avg_discount": np.mean([b.discount_factor for b in self.bidders])
         }

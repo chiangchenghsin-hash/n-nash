@@ -112,7 +112,9 @@ def get_environment_registry() -> Dict[str, EnvironmentSpec]:
 
             registry[env_id] = spec
             short_to_long[short_id] = env_id
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to load environment {file.stem}: {e}")
             continue
 
     _ENV_REGISTRY = registry

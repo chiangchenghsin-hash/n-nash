@@ -150,7 +150,9 @@ def _extract_time_series(history, env_type):
             series[k].append(entry.get(k, None))
 
     # Remove any series that are all None
-    return {k: v for k, v in series.items() if any(x is not None for x in v)}
+    return {k: [v for v in vals if v is not None]
+            for k, vals in series.items()
+            if any(x is not None for x in vals)}
 
 
 def _viz_single(data, key, output_path, plt, title, color):

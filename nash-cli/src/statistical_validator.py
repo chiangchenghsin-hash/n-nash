@@ -121,13 +121,15 @@ class StatisticalValidator:
 
     def _compute_cohens_d(self, group_a: np.ndarray, group_b: np.ndarray) -> float:
         n1, n2 = len(group_a), len(group_b)
-        var1, var2 = np.var(group_a, ddof=1), np.var(group_b, ddof=1)
-        
-        pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
-        
-        if pooled_std == 0:
+        if n1 < 2 or n2 < 2:
             return 0.0
-        
+        var1, var2 = np.var(group_a, ddof=1), np.var(group_b, ddof=1)
+
+        pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
+
+        if pooled_std == 0 or np.isnan(pooled_std):
+            return 0.0
+
         cohens_d = (np.mean(group_a) - np.mean(group_b)) / pooled_std
         return cohens_d
 
@@ -225,16 +227,19 @@ class StatisticalValidator:
     def compute_gini(self, values: List[float]) -> float:
         try:
             values = np.array(values)
+
+            if len(values) == 0 or np.any(values < 0):
+                return 0.0
+            if np.sum(values) == 0:
+                return 0.0
+
             sorted_values = np.sort(values)
             n = len(values)
-            
-            if n == 0 or np.sum(values) == 0:
-                return 0.0
-            
+
             cumulative = np.cumsum(sorted_values, dtype=float)
             cumulative = cumulative / cumulative[-1]
             gini = (n + 1 - 2 * np.sum(cumulative)) / n
-            
+
             return max(0.0, min(1.0, gini))
 
         except Exception as e:
