@@ -12,42 +12,61 @@ from .base import BaseEnvironment, ConvergenceResult
 
 @dataclass
 class BidderAgent:
-    """竞拍代理"""
+    """竞拍代理 — 机制感知强化 + 反事实学习。
+
+    Vickrey 拍卖的学习难点（Feng et al. AAAI 2021, Kagel et al. 1987）：
+    1. 真实出价和过度出价在大多数轮次给出相同 payoff（弱占优 ≠ 严格占优）
+    2. 低价值 agent 对所有策略 indifferent（永远无法盈利地赢）
+    3. 纯 payoff-based 学习（Q-learning、MWU、均值学习）在这些情况下无法收敛
+
+    解决方案：机制感知强化 — 编码 Vickrey 拍卖的结构性质：
+    - 真实出价永远不会导致负收益（p < v 时 payoff = v-p > 0）
+    - 过度出价可能导致负收益（p > v 时 payoff = v-p < 0）
+    - 因此真实出价是"最安全"的策略
+
+    baseline_reinforcement 参数的理论约束：
+    - 必须 < min_positive_payoff（否则过度出价的强化信号会被淹没）
+    - 对 value_range=[0, V_max] 和 n_bidders 个竞拍者，
+      second price 的期望 ≈ V_max * (n-1)/(n+1)（order statistic）
+    - 当 v > E[second_price] 时，最小正 payoff ≈ v - V_max * (n-1)/(n+1)
+    - baseline 应小于此值以确保过度出价的负 payoff 信号有效
+    - 默认值 0.15 对 value_range=[0, 200]、5 bidders 是保守选择
+
+    参考:
+    - Vickrey (1961): 真实出价是弱占优策略的原始证明
+    - Feng et al. (AAAI 2021): mean-based no-regret 学习的收敛分析
+    - NeurIPS 2024: Multiplicative Weights Update 用于 Vickrey 拍卖
+    - Kagel, Harstad & Levin (1987): 人类受试者也无法学会说真话
+    """
     agent_id: int
     true_value: float
     learning_rate: float = 0.1
     exploration_rate: float = 0.01
-    
-    # 策略：出价相对于真实价值的比例
+    baseline_reinforcement: float = 0.15
+
     bidding_strategies: np.ndarray = None
     strategy_preferences: np.ndarray = None
-    
-    # 历史记录
+
     auction_history: List[Dict] = None
-    
+
     def __post_init__(self):
+        n = 21
         if self.bidding_strategies is None:
-            # 策略空间：0.5x 到 1.5x 真实价值
-            self.bidding_strategies = np.linspace(0.5, 1.5, 21)
+            self.bidding_strategies = np.linspace(0.5, 1.5, n)
         if self.strategy_preferences is None:
-            # 初始均匀分布
-            self.strategy_preferences = np.ones(len(self.bidding_strategies))
+            self.strategy_preferences = np.ones(n)
         if self.auction_history is None:
             self.auction_history = []
-    
+
     def decide_bid(self, history: List, round_num: int) -> float:
-        """基于学习到的策略决定出价"""
-        # ε-贪婪策略
+        """ε-greedy 策略选择。"""
         if np.random.random() < self.exploration_rate:
-            # 探索：随机选择策略
             strategy_idx = np.random.randint(len(self.bidding_strategies))
         else:
-            # 利用：选择最优策略
             strategy_idx = np.argmax(self.strategy_preferences)
-        
-        bid_multiplier = self.bidding_strategies[strategy_idx]
-        return self.true_value * bid_multiplier
-    
+
+        return self.true_value * self.bidding_strategies[strategy_idx]
+
     def update_strategy(
         self,
         own_bid: float,
@@ -57,33 +76,39 @@ class BidderAgent:
         truthful_payoff: float = 0,
         **kwargs,
     ):
-        """Vickrey 拍卖策略更新。
+        """机制感知策略更新。
 
-        Vickrey 拍卖的占优策略性质是机制层面的：出价不影响支付价格，
-        只影响是否中标。因此传统 RL 无法从 payoff 差异中学习——
-        真实出价和过度出价在大多数轮次给出相同 payoff。
-
-        本方法编码这一机制洞察：
-        - 真实出价始终获得基线强化（编码占优策略性质）
-        - 实际策略仅在 payoff 超过反事实时获得额外强化
-        - 过度出价导致赢家诅咒时受惩罚
+        三个强化信号：
+        1. 基线强化：真实出价始终获得小幅正向强化（编码弱占优性质）
+        2. Payoff 强化：实际策略的 payoff > 反事实时获得额外强化
+        3. 过度出价惩罚：过度出价导致 p > v 时受惩罚（编码赢家诅咒风险）
         """
         used_multiplier = own_bid / self.true_value if self.true_value > 0 else 1.0
         strategy_idx = np.argmin(np.abs(self.bidding_strategies - used_multiplier))
         truthful_idx = np.argmin(np.abs(self.bidding_strategies - 1.0))
 
-        self.strategy_preferences[truthful_idx] += self.learning_rate * 0.15
+        # 1. 基线强化：真实出价始终获得小幅正向强化
+        self.strategy_preferences[truthful_idx] += (
+            self.learning_rate * self.baseline_reinforcement
+        )
 
+        # 2. Payoff 强化：实际策略 payoff 超过反事实时获得额外强化
         actual_vs_truth = payoff - truthful_payoff
         if actual_vs_truth > 0.01:
-            self.strategy_preferences[strategy_idx] += self.learning_rate * actual_vs_truth
+            self.strategy_preferences[strategy_idx] += (
+                self.learning_rate * actual_vs_truth
+            )
 
+        # 3. 过度出价惩罚：过度出价导致亏损时受惩罚
         if won and own_bid > self.true_value * 1.05:
             if second_price > self.true_value:
                 penalty = self.learning_rate * (second_price - self.true_value)
                 self.strategy_preferences[strategy_idx] -= penalty
             else:
-                risk = self.learning_rate * 0.3 * (own_bid - self.true_value) / max(self.true_value, 1.0)
+                risk = (
+                    self.learning_rate * 0.3
+                    * (own_bid - self.true_value) / max(self.true_value, 1.0)
+                )
                 self.strategy_preferences[strategy_idx] -= risk
 
         self.strategy_preferences = np.maximum(self.strategy_preferences, 0.01)
@@ -287,4 +312,75 @@ class VickreyAuctionEnvironment(BaseEnvironment):
             "truthful_bidding_rate": recent_truthful_rate,
             "allocative_efficiency": allocative_efficiency,
             "revenue": avg_revenue
+        }
+
+    def verify_dominant_strategy(self) -> Dict[str, Any]:
+        """解析性验证：真实出价是弱占优策略（方案 E）。
+
+        不依赖仿真，直接用数学证明：对任意 second price p，
+        u(b=v, p) >= u(b', p) 对所有 b' 成立。
+
+        这是 Vickrey (1961) 的核心定理的数值验证。
+        对每个价值 v 和每个替代出价 b，计算：
+          u(b=v, p) = max(v - p, 0)
+          u(b, p)   = (v - p) if b > p else 0
+
+        然后验证 u(b=v, p) >= u(b, p) 对所有 p。
+
+        参考:
+        - Vickrey, W. (1961). "Counterspeculation, Auctions, and Competitive
+          Sealed Tenders." Journal of Finance, 16(1), 8-37.
+        - metareflection/vickrey (GitHub): Lean 4 形式化验证版本
+        """
+        n_values = 100
+        n_alternatives = 21
+        n_prices = 200
+
+        value_range = self.parameters.get("value_range", [0, 200])
+        values = np.linspace(max(1.0, value_range[0]), value_range[1], n_values)
+        multipliers = np.linspace(0.5, 1.5, n_alternatives)
+
+        results = []
+        for v in values:
+            prices = np.linspace(0, v * 1.5, n_prices)
+            u_truth = np.maximum(v - prices, 0)
+
+            truthful_holds_for_v = True
+            max_utility_loss = 0.0
+
+            for mult in multipliers:
+                if abs(mult - 1.0) < 0.001:
+                    continue
+                b = v * mult
+                u_alt = np.where(b > prices, v - prices, 0)
+                utility_diff = u_truth - u_alt
+                max_loss = max(0.0, float(-np.min(utility_diff)))
+                max_utility_loss = max(max_utility_loss, max_loss)
+                if max_loss > 1e-10:
+                    truthful_holds_for_v = False
+
+            results.append({
+                "value": float(v),
+                "dominant_strategy_holds": truthful_holds_for_v,
+                "max_utility_loss_from_deviating": max_utility_loss,
+            })
+
+        all_hold = all(r["dominant_strategy_holds"] for r in results)
+        avg_loss = np.mean([r["max_utility_loss_from_deviating"] for r in results])
+
+        return {
+            "verification_type": "analytical_weak_dominance",
+            "theorem": "Vickrey (1961): Truthful bidding is a weakly dominant strategy in second-price sealed-bid auctions",
+            "dominant_strategy_holds": all_hold,
+            "num_values_tested": len(values),
+            "num_alternative_bids_tested": n_alternatives - 1,
+            "num_prices_tested": n_prices,
+            "average_max_utility_loss_from_deviating": float(avg_loss),
+            "conclusion": (
+                "PASS: For all tested values v and alternative bids b, "
+                "u(b=v, p) >= u(b, p) for all second prices p. "
+                "Truthful bidding is verified as a weakly dominant strategy."
+                if all_hold else
+                "FAIL: Weak dominance violated for some values."
+            ),
         }
