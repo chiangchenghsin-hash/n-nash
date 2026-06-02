@@ -144,7 +144,9 @@ def get_environment_spec(name: str) -> Optional[EnvironmentSpec]:
     return registry.get(env_id)
 
 
-def build_run_config(spec: EnvironmentSpec, agents: int, rounds: int) -> Dict[str, Any]:
+def build_run_config(
+    spec: EnvironmentSpec, agents: int, rounds: int, extra_params: Dict[str, Any] = None
+) -> Dict[str, Any]:
     import copy
 
     cfg = copy.deepcopy(spec.default_config)
@@ -156,14 +158,80 @@ def build_run_config(spec: EnvironmentSpec, agents: int, rounds: int) -> Dict[st
         params["num_bidders"] = {"value": agents}
     elif "num_workers" in params:
         params["num_workers"] = {"value": agents}
-    elif "num_men" in params or "num_women" in params:
-        half = max(1, agents // 2)
-        if "num_men" in params:
-            params["num_men"] = {"value": half}
-        if "num_women" in params:
-            params["num_women"] = {"value": half}
+    elif "num_men" in params:
+        params["num_men"] = {"value": agents}
 
     if "num_rounds" in params:
         params["num_rounds"] = {"value": rounds}
 
+    if extra_params:
+        for key, value in extra_params.items():
+            params[key] = {"value": value}
+
     return cfg
+
+
+PARAM_SPECS: Dict[str, List[Dict[str, Any]]] = {
+    "matching": [
+        {"name": "num_men",    "type": int,   "default": 10,  "range": (2, 500)},
+        {"name": "num_women",  "type": int,   "default": 10,  "range": (2, 500)},
+    ],
+    "spence": [
+        {"name": "num_workers",             "type": int,   "default": 100, "range": (10, 500)},
+        {"name": "num_firms",               "type": int,   "default": 10,  "range": (5, 200)},
+        {"name": "high_ability_threshold",  "type": float, "default": 0.5, "range": (0.1, 0.9)},
+    ],
+    "prisoners_dilemma": [
+        {"name": "num_agents",      "type": int,   "default": 20,   "range": (4, 500)},
+        {"name": "discount_factor", "type": float, "default": 0.95, "range": (0.1, 0.99)},
+        {"name": "learning_rate",   "type": float, "default": 0.1,  "range": (0.01, 0.5)},
+    ],
+    "hawk_dove": [
+        {"name": "num_agents",    "type": int,   "default": 100, "range": (10, 500)},
+        {"name": "resource_value","type": float, "default": 4.0, "range": (1.0, 20.0)},
+        {"name": "conflict_cost", "type": float, "default": 6.0, "range": (1.0, 30.0)},
+    ],
+}
+
+
+def validate_params(preset: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and coerce user-supplied params against PARAM_SPECS.
+
+    Returns the coerced params dict on success; raises ValueError with a
+    descriptive message on unknown keys or out-of-range values.
+    """
+    specs = PARAM_SPECS.get(preset)
+    if specs is None:
+        return params
+
+    valid_names = {s["name"] for s in specs}
+    unknown = set(params.keys()) - valid_names
+    if unknown:
+        spec_list = ", ".join(
+            f'{s["name"]} ({s["type"].__name__}, range {s["range"]})' for s in specs
+        )
+        raise ValueError(
+            f"Unknown parameters for '{preset}': {unknown}. "
+            f"Supported: {spec_list}"
+        )
+
+    result: Dict[str, Any] = {}
+    for spec in specs:
+        name = spec["name"]
+        if name not in params:
+            continue
+        typ = spec["type"]
+        lo, hi = spec["range"]
+        try:
+            value = typ(params[name])
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Parameter '{name}' must be {typ.__name__}, got: {params[name]!r}"
+            ) from exc
+        if value < lo or value > hi:
+            raise ValueError(
+                f"Parameter '{name}'={value} is out of range [{lo}, {hi}]"
+            )
+        result[name] = value
+
+    return result

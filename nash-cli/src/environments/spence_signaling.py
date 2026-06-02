@@ -116,11 +116,13 @@ class SpenceSignalingEnvironment(BaseEnvironment):
         
         # 阶段 3: 计算分离指数
         separation_index = self._calculate_separation_index()
-        
+        signal_noise_ratio = self._calculate_signal_noise_ratio()
+
         # 记录历史
         round_data = {
             "round": self.current_round,
             "separation_index": separation_index,
+            "signal_noise_ratio": signal_noise_ratio,
             "avg_education_high": self._avg_education_by_type("high"),
             "avg_education_low": self._avg_education_by_type("low"),
             "avg_wage_high": self._avg_wage_by_type("high"),
@@ -166,8 +168,27 @@ class SpenceSignalingEnvironment(BaseEnvironment):
             workers = [w for w in self.workers if w.ability > self.high_ability_threshold]
         else:
             workers = [w for w in self.workers if w.ability <= self.high_ability_threshold]
-        
+
         return np.mean([w.wage for w in workers]) if workers else 0.0
+
+    def _calculate_signal_noise_ratio(self) -> float:
+        """
+        信号噪音比例：雇主基于教育信号对工人能力分类的错误率。
+
+        接近 0.0 → 教育信号准确反映能力，市场可自行分辨质量
+        接近 1.0 → 教育信号与能力脱节，需要中介提供质量背书
+        """
+        if not self.workers:
+            return 0.0
+
+        threshold = self.high_ability_threshold
+        edu_median = float(np.median([w.education for w in self.workers]))
+
+        correct = sum(
+            1 for w in self.workers
+            if (w.education >= edu_median) == (w.ability > threshold)
+        )
+        return 1.0 - correct / len(self.workers)
     
     def check_convergence(self) -> ConvergenceResult:
         """检查是否收敛到分离均衡"""
@@ -211,25 +232,30 @@ class SpenceSignalingEnvironment(BaseEnvironment):
             return {
                 "separation_index": 0.0,
                 "education_premium": 0.0,
-                "signaling_efficiency": 0.0
+                "signaling_efficiency": 0.0,
+                "signal_noise_ratio": 0.0,
             }
-        
+
         recent = self.history[-20:] if len(self.history) >= 20 else self.history
-        
+
         separation_index = np.mean([h["separation_index"] for h in recent])
-        
+
         # 教育溢价：高能力者工资/低能力者工资
         avg_wage_high = recent[-1]["avg_wage_high"]
         avg_wage_low = recent[-1]["avg_wage_low"]
         education_premium = (avg_wage_high - avg_wage_low) / max(1, avg_wage_low)
-        
+
         # 信号效率：分离指数 / 最大可能分离
         signaling_efficiency = separation_index
-        
+
+        # 信号噪音率：最近一轮
+        signal_noise_ratio = recent[-1].get("signal_noise_ratio", 0.0)
+
         return {
             "separation_index": separation_index,
             "education_premium": education_premium,
-            "signaling_efficiency": signaling_efficiency
+            "signaling_efficiency": signaling_efficiency,
+            "signal_noise_ratio": signal_noise_ratio,
         }
 
 

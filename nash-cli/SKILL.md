@@ -114,7 +114,18 @@ with open('sweep_merged.json', 'w') as out:
 
 ### Pattern 5: Multi-Seed Reproducibility (Default for Research)
 
-Always run at least 3 seeds for research-grade results. Launch all in parallel:
+Always run at least 3 seeds for research-grade results. Two approaches:
+
+**Option A — `--seeds` batch (simplest, single invocation):**
+
+```bash
+uv run nash run --preset hawk_dove --agents 100 --rounds 200 \
+  --seeds 42,123,456,789,1024 -o multi_seed.json
+```
+
+Output includes `aggregated_metrics` with mean/std/min/max and `per_seed_results`.
+
+**Option B — Parallel `--seed` (for very heavy simulations, launch all in parallel):**
 
 ```
 Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o s42.json
@@ -149,6 +160,28 @@ uv run nash env info matching
 uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o results.json
 uv run nash run --preset vickrey --agents 50 --rounds 100
 uv run nash run --preset prisoners_dilemma --rounds 200
+
+# Pass environment-specific parameters via --params (JSON string)
+uv run nash run --preset matching \
+  --params '{"num_men": 50, "num_women": 200}' \
+  --rounds 200 --seed 42 -o result.json
+
+uv run nash run --preset prisoners_dilemma \
+  --params '{"num_agents": 100, "discount_factor": 0.6, "learning_rate": 0.1}' \
+  --rounds 200 --seed 42 -o result.json
+
+uv run nash run --preset spence \
+  --params '{"num_workers": 100, "num_firms": 20, "high_ability_threshold": 0.3}' \
+  --rounds 200 --seed 42 -o result.json
+
+uv run nash run --preset hawk_dove \
+  --params '{"num_agents": 100, "resource_value": 6.0, "conflict_cost": 4.0}' \
+  --rounds 200 --seed 42 -o result.json
+
+# Multi-seed batch run (single invocation, all seeds)
+uv run nash run --preset matching \
+  --params '{"num_men": 50, "num_women": 200}' \
+  --rounds 200 --seeds 42,43,44,45,46 -o multi_seed.json
 ```
 
 | Preset | Recommended --agents | Typical --rounds | Nobel Year |
@@ -161,6 +194,50 @@ uv run nash run --preset prisoners_dilemma --rounds 200
 | `spence` | 50 | 100 | 2001 (Akerlof, Spence, Stiglitz) |
 | `matching` | 50 | 100 | 2012 (Roth, Shapley) |
 | `auction_common_value` | 50 | 100 | 2020 (Milgrom, Wilson) |
+
+#### Environment-Specific Parameters (`--params`)
+
+| Preset | Parameter | Type | Default | Valid Range |
+|--------|-----------|------|---------|-------------|
+| `matching` | `num_men` | int | 10 | [2, 500] |
+| `matching` | `num_women` | int | 10 | [2, 500] |
+| `spence` | `num_workers` | int | 100 | [10, 500] |
+| `spence` | `num_firms` | int | 10 | [5, 200] |
+| `spence` | `high_ability_threshold` | float | 0.5 | [0.1, 0.9] |
+| `prisoners_dilemma` | `num_agents` | int | 20 | [4, 500] |
+| `prisoners_dilemma` | `discount_factor` | float | 0.95 | [0.1, 0.99] |
+| `prisoners_dilemma` | `learning_rate` | float | 0.1 | [0.01, 0.5] |
+| `hawk_dove` | `num_agents` | int | 100 | [10, 500] |
+| `hawk_dove` | `resource_value` | float | 4.0 | [1.0, 20.0] |
+| `hawk_dove` | `conflict_cost` | float | 6.0 | [1.0, 30.0] |
+
+- `--params` is optional. When omitted, defaults are used (backward compatible).
+- `--agents` remains a shortcut: if `--params` contains the corresponding count key, `--params` wins; otherwise `--agents` maps to the primary count parameter.
+- Invalid parameter names or out-of-range values produce an error listing supported parameters.
+
+#### Multi-Seed Batch (`--seeds`)
+
+```bash
+uv run nash run --preset hawk_dove --rounds 200 --seeds 1,2,3,4,5 -o multi.json
+```
+
+Output format for multi-seed runs:
+
+```json
+{
+  "status": "completed",
+  "preset": "hawk_dove",
+  "seeds": [1, 2, 3, 4, 5],
+  "aggregated_metrics": {
+    "hawk_ratio": {"mean": 0.667, "std": 0.016, "min": 0.640, "max": 0.690},
+    "ess_deviation": {"mean": 0.000, "std": 0.016, "min": 0.000, "max": 0.023}
+  },
+  "per_seed_results": [
+    {"seed": 1, "converged": true, "total_rounds": 200, "final_metrics": {...}},
+    ...
+  ]
+}
+```
 
 ### sweep — Parameter space exploration
 
@@ -204,21 +281,85 @@ Presets: `hawk_dove`, `prisoners_dilemma`, `public_goods`, `common_pool`, `vickr
 
 ## Data Format
 
-Run output JSON format:
+### Single-seed run output
 
 ```json
 {
   "status": "completed",
-  "environment": "hawk_dove",
+  "preset": "matching",
+  "environment": "matching",
+  "environment_type": "two_sided_matching",
+  "input_params": {
+    "num_men": 50,
+    "num_women": 200,
+    "seed": 42,
+    "rounds": 200
+  },
   "total_rounds": 200,
   "converged": true,
   "convergence_message": "ESS reached (deviation 4.4%)",
-  "final_metrics": { "hawk_ratio": 0.62, "ess_deviation": 0.04, ... },
+  "final_metrics": {
+    "hawk_ratio": 0.62,
+    "ess_deviation": 0.04
+  },
   "history": [
     { "round": 1, "hawk_ratio": 0.55, ... },
     ...
   ],
   "config": { ... }
+}
+```
+
+- `input_params` echoes back all CLI parameters used (seed, rounds, and any `--params` values) — useful for audit and reproducibility.
+- `final_metrics` keys vary by environment. See environment-specific metrics below.
+
+### Environment-Specific Metrics
+
+**matching** (`two_sided_matching`):
+| Metric | Description |
+|--------|-------------|
+| `stability_index` | 1.0 = all matches are stable (Nobel verification) |
+| `matching_efficiency` | Fraction of min(num_men, num_women) matched |
+| `matching_search_intensity` | Avg rejections per supplier before matching (high = inefficient market, high intermediary value) |
+| `market_imbalance` | `|num_men - num_women| / max(num_men, num_women)` — 0 = balanced, ~1 = severely imbalanced |
+| `unmatched_ratio` | Fraction of max(num_men, num_women) that failed to match — 0 = all matched, >0 = some unmatched |
+
+**spence** (`spence_signaling`):
+| Metric | Description |
+|--------|-------------|
+| `separation_index` | Education gap between high/low ability workers (Nobel verification) |
+| `education_premium` | Wage difference between high and low ability groups |
+| `signaling_efficiency` | Same as separation_index |
+| `signal_noise_ratio` | Misclassification rate of workers by education signal — 0 = perfect signal, 1 = random noise (high = intermediary value for quality certification) |
+
+**hawk_dove** (`hawk_dove`):
+| Metric | Description |
+|--------|-------------|
+| `hawk_ratio` | Proportion of hawk-strategy agents at convergence |
+| `ess_deviation` | Deviation from theoretical ESS prediction (V/C) |
+| `strategy_stability` | 1 - variance of recent hawk_ratio (higher = more stable) |
+
+**prisoners_dilemma** (`repeated_prisoners_dilemma`):
+| Metric | Description |
+|--------|-------------|
+| `cooperation_rate` | Fraction of cooperate actions in recent interactions |
+| `mutual_cooperation_rate` | Fraction of mutual-cooperation pairs |
+| `delta_condition_met` | 1.0 if discount factor > theoretical threshold |
+| `spne_supported` | 1.0 if cooperation rate > 0.8 AND delta condition met |
+
+### Multi-seed batch output
+
+```json
+{
+  "status": "completed",
+  "preset": "hawk_dove",
+  "seeds": [42, 43, 44, 45, 46],
+  "aggregated_metrics": {
+    "hawk_ratio": {"mean": 0.667, "std": 0.016, "min": 0.640, "max": 0.690}
+  },
+  "per_seed_results": [
+    {"seed": 42, "converged": true, "total_rounds": 200, "final_metrics": {...}}
+  ]
 }
 ```
 

@@ -243,18 +243,37 @@ uv run nash env info matching             # 短别名 → two_sided_matching
 
 **别名系统**：`env info` 同时接受短 ID 和完整 ID。`vickrey` 自动解析为 `vickrey_auction`，`prisoners_dilemma` 解析为 `repeated_prisoners_dilemma`。`hawk_dove`、`public_goods`、`auction_common_value` 无别名，直接使用完整 ID。
 
+### 运行时传参（`--params`）
+
+选定模型后，可通过 `--params` 传入环境专属参数（详见 [[nash-run]]）：
+
+```bash
+# matching: 不对称市场
+uv run nash run --preset matching --params '{"num_men": 50, "num_women": 200}' --rounds 200
+
+# spence: 信号噪音
+uv run nash run --preset spence --params '{"high_ability_threshold": 0.8}' --rounds 100
+
+# hawk_dove: 高资源低冲突市场
+uv run nash run --preset hawk_dove --params '{"resource_value": 8, "conflict_cost": 3}' --rounds 200
+```
+
+向用户推荐模型时，**同时建议适合其场景的 `--params` 取值**。
+
 ## 环境参考表
 
-| ID | 博弈名称 | 诺贝尔年 | 获奖者 | 均衡类型 |
-|----|---------|---------|--------|---------|
-| `hawk_dove` | Hawk-Dove | 2005 | Aumann, Schelling | 进化稳定策略 (ESS) |
-| `repeated_prisoners_dilemma` | Repeated PD | 2005 | Aumann, Schelling | 子博弈精炼纳什均衡 (SPNE) |
-| `public_goods` | Public Goods | 2009 | Ostrom | 搭便车均衡 |
-| `common_pool_resource` | Common Pool Resource | 2009 | Ostrom | 公地悲剧 |
-| `vickrey_auction` | Vickrey Auction | 1996 | Vickrey | 真实出价（占优策略） |
-| `spence_signaling` | Spence Signaling | 2001 | Akerlof, Spence, Stiglitz | 分离均衡 |
-| `two_sided_matching` | Two-Sided Matching | 2012 | Roth, Shapley | 稳定匹配 |
-| `auction_common_value` | Common Value Auction | 2020 | Milgrom, Wilson | 赢家诅咒规避 |
+| ID | 博弈名称 | 诺贝尔年 | 获奖者 | 均衡类型 | MOI 专属指标 |
+|----|---------|---------|--------|---------|-------------|
+| `hawk_dove` | Hawk-Dove | 2005 | Aumann, Schelling | 进化稳定策略 (ESS) | — |
+| `repeated_prisoners_dilemma` | Repeated PD | 2005 | Aumann, Schelling | 子博弈精炼纳什均衡 (SPNE) | — |
+| `public_goods` | Public Goods | 2009 | Ostrom | 搭便车均衡 | — |
+| `common_pool_resource` | Common Pool Resource | 2009 | Ostrom | 公地悲剧 | — |
+| `vickrey_auction` | Vickrey Auction | 1996 | Vickrey | 真实出价（占优策略） | — |
+| `spence_signaling` | Spence Signaling | 2001 | Akerlof, Spence, Stiglitz | 分离均衡 | `signal_noise_ratio` |
+| `two_sided_matching` | Two-Sided Matching | 2012 | Roth, Shapley | 稳定匹配 | `matching_search_intensity`, `market_imbalance`, `unmatched_ratio` |
+| `auction_common_value` | Common Value Auction | 2020 | Milgrom, Wilson | 赢家诅咒规避 | — |
+
+> **MOI 专属指标**说明：matching 和 spence 环境除了 Nobel 验证指标外，还输出市场特征指标，用于 MOI 评估中介价值。详见 [[nash-cli]] 的 Data Format 章节。
 
 ## 完整决策树
 

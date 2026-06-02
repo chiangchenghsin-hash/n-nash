@@ -48,6 +48,11 @@ def main():
     p_run.add_argument("--rounds", type=int, default=100, help="Simulation rounds")
     p_run.add_argument("--output", "-o", type=str, help="Output JSON file path")
     p_run.add_argument("--seed", type=int, help="Random seed for reproducibility")
+    p_run.add_argument("--params", type=str, default=None,
+                       help="Environment-specific parameters as JSON, e.g. "
+                            "'{\"num_men\": 50, \"num_women\": 200}'")
+    p_run.add_argument("--seeds", type=str, default=None,
+                       help="Comma-separated seeds for batch run, e.g. '42,43,44'")
 
     # -- env --
     p_env = sub.add_parser("env", help="Game environment management")

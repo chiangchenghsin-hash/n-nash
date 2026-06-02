@@ -312,6 +312,24 @@ __all__ = [
 ]
 ```
 
+### 步骤 2b: 注册 `--params` 参数规格
+
+在 `scripts/nash_cli/commands/__init__.py` 的 `PARAM_SPECS` 字典中添加新环境的参数规格，使 `--params` CLI 参数对新环境生效：
+
+```python
+# 在 PARAM_SPECS 字典中添加
+PARAM_SPECS = {
+    # ... 已有环境
+    "new_game_short_id": [
+        {"name": "num_agents",   "type": int,   "default": 100, "range": (10, 500)},
+        {"name": "custom_param", "type": float, "default": 1.0, "range": (0.1, 10.0)},
+    ],
+}
+```
+
+每条规格包含：`name`（参数名）、`type`（int/float）、`default`（默认值）、`range`（合法范围元组）。
+不注册则 `--params '{"custom_param": 5}'` 会报错 "Unknown parameters"。
+
 ### 步骤 3: 创建测试文件
 
 创建 `test_{new_game}.py`：

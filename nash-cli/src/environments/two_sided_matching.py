@@ -11,33 +11,39 @@ from src.environments.base import BaseEnvironment, ConvergenceResult
 class TwoSidedMatchingEnvironment(BaseEnvironment):
     """
     双边匹配环境
-    
+
     使用 Gale-Shapley 延迟接受算法实现稳定匹配
     """
-    
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
 
         self.num_men = self._p("num_men", 10)
         self.num_women = self._p("num_women", 10)
-        
+
         # 随机生成偏好列表
-        self.men_prefs = [np.random.permutation(self.num_women).tolist() 
+        self.men_prefs = [np.random.permutation(self.num_women).tolist()
                          for _ in range(self.num_men)]
-        self.women_prefs = [np.random.permutation(self.num_men).tolist() 
+        self.women_prefs = [np.random.permutation(self.num_men).tolist()
                            for _ in range(self.num_women)]
-        
+
         self.matches: List[tuple] = []
         self.history: List[Dict[str, Any]] = []
-    
+
+        # 市场摩擦指标（每轮 run_step 更新）
+        self._matching_search_intensity: float = 0.0
+        self._market_imbalance: float = 0.0
+        self._unmatched_ratio: float = 0.0
+
     def initialize_agents(self) -> None:
         pass  # 偏好已初始化
-    
+
     def gale_shapley(self) -> List[tuple]:
-        """执行 Gale-Shapley 算法（男性求婚版本）"""
+        """执行 Gale-Shapley 算法（男性求婚版本），同时记录拒绝次数。"""
         men_free = list(range(self.num_men))
         men_next_proposal = [0] * self.num_men
         women_partner = [-1] * self.num_women
+        total_rejections = 0
 
         while men_free:
             man = men_free.pop(0)
@@ -45,7 +51,7 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
                 continue
             woman = self.men_prefs[man][men_next_proposal[man]]
             men_next_proposal[man] += 1
-            
+
             if women_partner[woman] == -1:
                 women_partner[woman] = man
             else:
@@ -56,9 +62,11 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
                     men_free.append(current)
                 else:
                     men_free.append(man)
-        
+                total_rejections += 1
+
+        self._total_rejections = total_rejections
         return [(w, women_partner[w]) for w in range(self.num_women) if women_partner[w] >= 0]
-    
+
     def run_step(self) -> Dict[str, Any]:
         self.current_round += 1
 
@@ -70,24 +78,46 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
 
         matches = self.gale_shapley()
         self.matches = matches
-        
+
+        # ── 市场摩擦指标 ──────────────────────────────────────────────
+        # 搜索强度：每个供给侧参与者被拒绝的平均次数
+        self._matching_search_intensity = (
+            self._total_rejections / max(1, self.num_men)
+        )
+
+        # 供需失衡度：0=均衡，接近1=严重失衡
+        max_side = max(self.num_men, self.num_women)
+        self._market_imbalance = (
+            abs(self.num_men - self.num_women) / max_side if max_side else 0.0
+        )
+
+        # 未匹配比例：0=全部匹配，>0 表示有人找不到交易对象
+        # 用 max_side 做分母：失衡时多数侧必然有人落单
+        max_side = max(self.num_men, self.num_women)
+        self._unmatched_ratio = (
+            1.0 - len(matches) / max_side if max_side else 0.0
+        )
+
         # 检查稳定性
         blocking_pairs = self._count_blocking_pairs(matches)
-        
+
         round_data = {
             "round": self.current_round,
             "num_matches": len(matches),
             "blocking_pairs": blocking_pairs,
-            "stability_index": 1.0 - blocking_pairs / (self.num_men * self.num_women)
+            "stability_index": 1.0 - blocking_pairs / (self.num_men * self.num_women),
+            "matching_search_intensity": self._matching_search_intensity,
+            "market_imbalance": self._market_imbalance,
+            "unmatched_ratio": self._unmatched_ratio,
         }
         return round_data
-    
+
     def _count_blocking_pairs(self, matches: List[tuple]) -> int:
         """计算阻塞对数量"""
         blocked = 0
         wife_of = {w: m for w, m in matches}
         husband_of = {m: w for w, m in matches}
-        
+
         for m in range(self.num_men):
             for w in range(self.num_women):
                 if m not in husband_of or w not in wife_of:
@@ -96,33 +126,45 @@ class TwoSidedMatchingEnvironment(BaseEnvironment):
                     # 检查是否互相偏好
                     m_prefers_w = self.men_prefs[m].index(w) < self.men_prefs[m].index(husband_of.get(m, -1))
                     w_prefers_m = self.women_prefs[w].index(m) < self.women_prefs[w].index(wife_of.get(w, -1))
-                    
+
                     if m_prefers_w and w_prefers_m:
                         blocked += 1
-        
+
         return blocked
-    
+
     def check_convergence(self) -> ConvergenceResult:
         if len(self.history) < 10:
             return ConvergenceResult(False, "stability_index", 0, 0.9, 0.1, "数据不足")
-        
+
         recent = self.history[-10:]
         avg_stability = np.mean([h["stability_index"] for h in recent])
-        
+
         converged = avg_stability > 0.95
         message = f"{'✅' if converged else '⏳'} 稳定性指数：{avg_stability:.1%}"
-        
+
         return ConvergenceResult(converged, "stability_index", avg_stability, 0.95, 0.05, message)
-    
+
     def get_validation_metrics(self) -> Dict[str, float]:
         if not self.history:
-            return {"stability_index": 0.0, "matching_efficiency": 0.0}
-        
+            return {
+                "stability_index": 0.0,
+                "matching_efficiency": 0.0,
+                "matching_search_intensity": 0.0,
+                "market_imbalance": 0.0,
+                "unmatched_ratio": 0.0,
+            }
+
         recent = self.history[-10:]
         stability = np.mean([h["stability_index"] for h in recent])
         efficiency = len(self.matches) / min(self.num_men, self.num_women)
-        
-        return {"stability_index": stability, "matching_efficiency": efficiency}
+
+        return {
+            "stability_index": stability,
+            "matching_efficiency": efficiency,
+            "matching_search_intensity": self._matching_search_intensity,
+            "market_imbalance": self._market_imbalance,
+            "unmatched_ratio": self._unmatched_ratio,
+        }
 
 
 def create_two_sided_matching(num_men: int = 10, num_women: int = 10) -> tuple:

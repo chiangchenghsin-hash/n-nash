@@ -67,12 +67,16 @@ Before launching any analysis, read the JSON file and inspect its top-level keys
 | Key present | Data source | Validation | Viz |
 |---|---|---|---|
 | `environment` | Game environment | `--type nobel` | all (auto-detect) |
+| `input_params` | Game environment with CLI param echo | `--type nobel` | all (auto-detect) |
 | `history` (array) | Game environment | `--type nobel` | all (time-series subplots) |
+| `seeds` + `aggregated_metrics` | Multi-seed batch run | `--type nobel` on `per_seed_results` | all (with error bars) |
 
 Detection example:
 ```bash
 python -c "import json; d=json.load(open('results.json')); print(list(d.keys())[:10])"
 ```
+
+**`input_params` field**: When present, contains the CLI parameters used for the run (num_men, num_women, seed, rounds, etc.). Use this to contextualize results — e.g., a high `market_imbalance` metric is expected when `input_params.num_men` >> `input_params.num_women`.
 
 ## 5. Nobel Benchmark Validation
 
@@ -236,7 +240,13 @@ mcp__memory__create_relations({
 
 4. **Describe the charts** (if viz was generated). 1-2 sentences per chart.
 
-5. **Suggest next steps** proactively:
+5. **Report MOI market metrics** when present in matching/spence results:
+   - `matching_search_intensity` (avg rejections per supplier): "Market X requires 27.7 search steps per supplier vs 1.7 for a balanced market — high intermediary value."
+   - `market_imbalance` (0=balanced, ~1=severely imbalanced): "Market imbalance of 0.85 means the supply side is 7× larger than demand."
+   - `unmatched_ratio` (fraction that couldn't match): "85% of suppliers have no matching buyer — strong intermediary opportunity."
+   - `signal_noise_ratio` (misclassification rate): "With signal_noise_ratio=0.41, the market struggles to distinguish quality — intermediary certification adds value."
+
+6. **Suggest next steps** proactively:
    - "Would you like to run a parameter sweep to find the tipping point?"
    - "Should we compare this against a different environment?"
    - "Want me to run 5 seeds to verify reproducibility?"

@@ -82,10 +82,62 @@ mcp__memory__add_observations({...})
 
 Key parameters:
 - `--preset`: game environment (REQUIRED)
-- `--agents`: number of agents (10-1000)
+- `--agents`: number of agents (10-1000) — shortcut for the primary count parameter
 - `--rounds`: simulation rounds (default: 100)
 - `--seed`: random seed for reproducibility
+- `--seeds`: comma-separated seeds for batch run (e.g. `--seeds 42,43,44`)
+- `--params`: environment-specific parameters as JSON (see table below)
 - `-o` / `--output`: save results to JSON file
+
+### Environment-Specific Parameters (`--params`)
+
+Pass environment-specific parameters that `--agents` cannot express:
+
+```bash
+# Asymmetric matching market (supply >> demand)
+uv run nash run --preset matching \
+  --params '{"num_men": 50, "num_women": 200}' \
+  --rounds 200 --seed 42 -o result.json
+
+# Low discount factor prisoners_dilemma (short-term incentives)
+uv run nash run --preset prisoners_dilemma \
+  --params '{"num_agents": 100, "discount_factor": 0.3}' \
+  --rounds 200 --seed 42 -o result.json
+
+# Spence with high ability threshold (hard to distinguish workers)
+uv run nash run --preset spence \
+  --params '{"num_workers": 100, "num_firms": 20, "high_ability_threshold": 0.8}' \
+  --rounds 200 --seed 42 -o result.json
+```
+
+| Preset | Parameter | Type | Default | Range | MOI Relevance |
+|--------|-----------|------|---------|-------|---------------|
+| `matching` | `num_men` | int | 10 | [2, 500] | Supplier side count |
+| `matching` | `num_women` | int | 10 | [2, 500] | Buyer side count |
+| `spence` | `num_workers` | int | 100 | [10, 500] | Worker (supplier) count |
+| `spence` | `num_firms` | int | 10 | [5, 200] | Firm (buyer) count |
+| `spence` | `high_ability_threshold` | float | 0.5 | [0.1, 0.9] | Quality signal clarity |
+| `prisoners_dilemma` | `num_agents` | int | 20 | [4, 500] | Participant count |
+| `prisoners_dilemma` | `discount_factor` | float | 0.95 | [0.1, 0.99] | Long-term relationship importance |
+| `prisoners_dilemma` | `learning_rate` | float | 0.1 | [0.01, 0.5] | Strategy adaptation speed |
+| `hawk_dove` | `num_agents` | int | 100 | [10, 500] | Participant count |
+| `hawk_dove` | `resource_value` | float | 4.0 | [1.0, 20.0] | Market profit margin |
+| `hawk_dove` | `conflict_cost` | float | 6.0 | [1.0, 30.0] | Competition intensity |
+
+**Notes:**
+- `--params` is optional — defaults are used when omitted (backward compatible).
+- `--agents` still works as a shortcut for the primary count parameter; if `--params` contains the same key, `--params` wins.
+- Invalid or out-of-range values produce a clear error listing supported parameters.
+
+### New Environment Metrics (MOI-relevant)
+
+**matching** (after `--params` supply/demand calibration):
+- `matching_search_intensity`: avg rejections per supplier — high = inefficient market, high intermediary value
+- `market_imbalance`: `|num_men - num_women| / max(num_men, num_women)` — 0 = balanced, ~1 = severely imbalanced
+- `unmatched_ratio`: fraction that failed to match — high = intermediary needed
+
+**spence**:
+- `signal_noise_ratio`: worker misclassification rate by education signal — 0 = clear signal, 1 = noise (high = intermediary value for quality certification)
 
 ## 4. Background Execution for Heavy Simulations
 
@@ -199,7 +251,31 @@ with open('sweep_merged.json', 'w') as out:
 
 ## 7. Multi-Seed Reproducibility (Default for Research)
 
-For research-grade results, always run 5 seeds. Launch ALL in parallel:
+For research-grade results, always run 5 seeds. Two approaches:
+
+### Option A — `--seeds` batch (single CLI call, recommended)
+
+```bash
+uv run nash run --preset hawk_dove --agents 100 --rounds 200 \
+  --seeds 42,123,456,789,1024 -o multi_seed.json
+```
+
+Output includes `aggregated_metrics` with mean/std/min/max per metric and `per_seed_results` with individual runs.
+
+```json
+{
+  "seeds": [42, 123, 456, 789, 1024],
+  "aggregated_metrics": {
+    "hawk_ratio": {"mean": 0.667, "std": 0.016, "min": 0.640, "max": 0.690}
+  },
+  "per_seed_results": [
+    {"seed": 42, "converged": true, "final_metrics": {...}},
+    ...
+  ]
+}
+```
+
+### Option B — Parallel `--seed` (for very heavy simulations, launch all in parallel)
 
 ```bash
 Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o seed_42.json
@@ -311,6 +387,14 @@ uv run nash run --preset vickrey --agents 50 --rounds 100
 uv run nash run --preset spence --agents 50 --rounds 100
 uv run nash run --preset matching --agents 50 --rounds 100
 uv run nash run --preset auction_common_value --agents 50 --rounds 100
+
+# Environment-specific parameters (for MOI market calibration)
+uv run nash run --preset matching --params '{"num_men": 50, "num_women": 200}' --rounds 200 --seed 42
+uv run nash run --preset spence --params '{"high_ability_threshold": 0.3}' --rounds 100 --seed 42
+uv run nash run --preset hawk_dove --params '{"resource_value": 8, "conflict_cost": 3}' --rounds 200
+
+# Multi-seed batch
+uv run nash run --preset matching --params '{"num_men": 50, "num_women": 200}' --rounds 200 --seeds 42,43,44,45,46 -o multi.json
 
 # Config + sweep
 uv run nash config template --preset hawk_dove -o cfg.json
