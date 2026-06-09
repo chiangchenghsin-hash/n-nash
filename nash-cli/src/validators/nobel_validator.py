@@ -117,7 +117,21 @@ class NobelValidator:
             "laureates": ["Robert Aumann", "Thomas Schelling"],
             "prediction": "ESS 策略",
             "key_metrics": ["hawk_ratio", "ess_deviation"]
-        }
+        },
+        "social_trust_commons": {
+            "name": "社会信任公地悲剧",
+            "year": 2009,
+            "laureates": ["Elinor Ostrom"],
+            "prediction": "无/弱治理时信任公地趋向枯竭",
+            "key_metrics": ["trust_depletion_rate", "sustainability_index", "price_decline_rate"]
+        },
+        "social_trust": {
+            "name": "社会信任公地悲剧",
+            "year": 2009,
+            "laureates": ["Elinor Ostrom"],
+            "prediction": "无/弱治理时信任公地趋向枯竭",
+            "key_metrics": ["trust_depletion_rate", "sustainability_index", "price_decline_rate"]
+        },
     }
 
     def validate(self,
@@ -490,6 +504,68 @@ class NobelValidator:
             suggestions=suggestions
         )
     
+    def _validate_social_trust_commons(self,
+                                       metrics: Dict[str, float],
+                                       config: Dict[str, Any],
+                                       model_info: Dict) -> ValidationResult:
+        """验证社会信任公地悲剧"""
+        return self._validate_social_trust(metrics, config, model_info)
+
+    def _validate_social_trust(self,
+                               metrics: Dict[str, float],
+                               config: Dict[str, Any],
+                               model_info: Dict) -> ValidationResult:
+        """验证社会信任公地悲剧
+
+        理论预测：无/弱治理时信任资源趋向枯竭，价格归零。
+        """
+        trust_depletion = metrics.get("trust_depletion_rate", 0.0)
+        price_decline = metrics.get("price_decline_rate", 0.0)
+        sustainability = metrics.get("sustainability_index", 1.0)
+
+        # 信任显著枯竭 或 价格显著下降 或 持续性差
+        trust_eroded = trust_depletion > 0.3
+        price_crashed = price_decline > 0.3
+        unsustainable = sustainability < 0.4
+
+        tragedy_observed = trust_eroded or price_crashed or unsustainable
+
+        if trust_eroded and (price_crashed or unsustainable):
+            confidence = min(1.0, trust_depletion)
+            conclusion = (
+                f"✓ 社会信任公地悲剧验证成功：信任枯竭率 {trust_depletion:.1%}，"
+                f"价格下降 {price_decline:.1%}，可持续指数 {sustainability:.2f}"
+            )
+        elif tragedy_observed:
+            confidence = 0.6
+            conclusion = (
+                f"✓ 社会信任公地衰退趋势确认：枯竭率 {trust_depletion:.1%}，"
+                f"价格下降 {price_decline:.1%}，可持续指数 {sustainability:.2f}"
+            )
+        else:
+            confidence = max(0.0, 1.0 - trust_depletion - price_decline)
+            conclusion = (
+                f"✗ 社会信任公地未显著衰退：枯竭率 {trust_depletion:.1%}，"
+                f"价格下降 {price_decline:.1%}，可持续指数 {sustainability:.2f}"
+            )
+
+        suggestions = []
+        if not tragedy_observed:
+            suggestions.append("降低治理强度以观察自然衰退")
+            suggestions.append("增加组局者数量以加剧信任竞争")
+            suggestions.append("降低自然修复速率")
+            suggestions.append("增加外部冲击概率")
+
+        return ValidationResult(
+            model_name=model_info["name"],
+            nobel_year=model_info["year"],
+            hypothesis_supported=tragedy_observed,
+            confidence=confidence,
+            metrics=metrics,
+            conclusion=conclusion,
+            suggestions=suggestions,
+        )
+
     def _validate_generic(self,
                          metrics: Dict[str, float],
                          config: Dict[str, Any],

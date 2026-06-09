@@ -3,309 +3,185 @@ name: nash-analyze
 description: "Analyze NASH simulation results. Use when the user asks to analyze results, validate a simulation, verify a hypothesis, check convergence, visualize data, plot results, interpret output, or understand what simulation data means. Triggers on: analyze, validate, verify, hypothesis, convergence, visualize, plot, chart, significant, what does this mean."
 ---
 
-> **Memory:** This skill uses Claude Code's native memory system for context persistence. No additional MCP setup needed.
+# NASH Analyze — Statistical Validation & Multi-Perspective Interpretation (v2)
 
-# NASH Analyze — Statistical Validation & Visualization (Agent Team Mode)
+你把仿真 JSON 变成可决策的报告。不只解释"跑出来什么"，还解释**该方程组属于哪类原语组合、哪项贡献最大、哪些结论是强支持、哪些只是启发式**。
 
-You analyze NASH simulation output. You run Nobel benchmark verification, statistical tests, and generate charts. You explain results in plain language and persist conclusions to memory.
+> **Memory:** Uses Claude Code's native memory system.
 
-## Multilingual Summary / 多语言概要 / 多言語概要
+## Multilingual Summary
 
-- English: Turn raw simulation JSON into a decision-grade report: validate (Nobel/stat), visualize, explain, and synthesize perspectives with agent teams; present results using Mermaid diagrams and optionally HTML-ready sections.
-- 中文：把仿真 JSON 变成可决策的报告：做诺奖/统计验证、可视化、解释与多视角共识；用 Mermaid 图表与可嵌入 HTML 的结构化输出呈现。
-- 日本語：シミュレーション JSON を意思決定用レポートに変換：ノーベル/統計検証・可視化・解釈・チーム合意形成。Mermaid 図や HTML 取り込み前提の構造で提示する。
+- English: Turn raw simulation JSON into a decision-grade report: identify primitive composition, validate (Nobel/stat), visualize, explain contribution decomposition, label conclusion strength, and synthesize multi-perspective agent team output.
+- 中文：把仿真 JSON 变成决策级报告：识别原语组合、验证、可视化、解释贡献分解、标注结论强度、多视角 agent team 综合解读。
 
-## Use Cases / 应用场景 / 利用シーン
+## 核心理念：从"跑出来什么"到"为什么跑出来 + 能信多少"
 
-- English: Novel writing (character strategy consistency checks); public-opinion plan research (scenario stress tests, stakeholder response simulations).
-- 中文：小说创作（角色策略一致性检查、冲突走向验证）；舆情方案推研（情景压力测试、利益相关方响应模拟）。
-- 日本語：小説創作（人物の戦略整合性チェック、対立展開の検証）；世論/広報施策（シナリオのストレステスト、利害関係者の反応シミュレーション）。
+**v2 新增分析维度**：
+1. **原语组合识别** — 这个仿真结果对应哪组原语的动力学
+2. **贡献分解** — 哪些项（再生/质量/污名/冲击）主导了信任变化
+3. **结论强度标注** — 强支持 / 启发式 / 评论性
+4. **断裂点时间线** — 特别是 social_trust_commons 的三类断裂点
 
-## 核心理念：多方验证 + 深度解读
-
-**A single metric never tells the full story. Use parallel validation, multi-perspective interpretation, and proactive follow-up suggestions.**
-
-- Validate AND visualize → always in parallel, never sequential
-- Single result file → Nobel + statistical + viz, all at once
-- Multiple result files → agent team interprets from different angles
-- After ANY analysis → persist conclusions to memory, suggest next experiment
-
-## 1. When to Use
-
-Trigger words: "analyze results", "validate simulation", "verify hypothesis", "check convergence", "visualize data", "plot results", "is this significant?", "what does this mean?", "interpret", "chart", "graph".
-
-## 2. Quick Decision: What Analysis?
+## 快速决策
 
 ```
-User has results.json?
-├─ Has "environment" key -> Environment results -> Nobel benchmark validation + metrics viz
-├─ Has "history" array -> Time-series viz available
-├─ Multiple .json files -> Comparison analysis (Section 7)
-└─ Not sure -> Read the file first, check top-level keys
+有 results.json？
+├─ 有 "environment" → 诺贝尔验证 + 指标可视化
+├─ 有 "trust_history" / "stigma_history" → social_trust_commons 专项分析
+├─ 有 "breakpoints" → 断裂点时间线
+├─ 有 "history" 数组 → 时间序列可视化
+├─ 多个 .json 文件 → 对比分析
+└─ 不确定 → 先读文件检查顶层 key
 ```
 
-## 3. Standard Analysis Pipeline (Parallel Validate + Viz)
+## 标准分析流程
 
-Validation and visualization are independent. Run them simultaneously:
+### Step 1 — 并行验证 + 可视化
 
 ```bash
-# Launch BOTH in parallel, single message:
+# 同时启动（同一消息）：
 Bash: uv run nash validate --data results.json --type nobel -o validation.json
 Bash: uv run nash viz --data results.json --type all -o charts.png
 ```
 
-After both complete:
-1. Read `validation.json` for the Nobel conclusion
-2. View `charts.png` for visual inspection
-3. Cross-reference: does the chart match the validator's conclusion?
-4. Present unified interpretation to user
+### Step 2 — 读取并交叉验证
 
-## 4. Data Type Detection
+读取 `validation.json` 和 `charts.png`，检查二者是否一致。
 
-Before launching any analysis, read the JSON file and inspect its top-level keys:
+### Step 3 — 原语组合识别
 
-| Key present | Data source | Validation | Viz |
-|---|---|---|---|
-| `environment` | Game environment | `--type nobel` | all (auto-detect) |
-| `input_params` | Game environment with CLI param echo | `--type nobel` | all (auto-detect) |
-| `history` (array) | Game environment | `--type nobel` | all (time-series subplots) |
-| `seeds` + `aggregated_metrics` | Multi-seed batch run | `--type nobel` on `per_seed_results` | all (with error bars) |
+根据结果中的环境类型和指标判断对应原语：
+- `social_trust_commons` → social_trust_commons 原语（可含 lemons 辅原语）
+- `common_pool_resource` → common_pool_resource 原语
+- 等
 
-Detection example:
-```bash
-python -c "import json; d=json.load(open('results.json')); print(list(d.keys())[:10])"
+### Step 4 — 贡献分解（social_trust_commons 专项）
+
+对于 social_trust_commons 结果，从 history 中分解：
+```
+信任变化的 N 大贡献项:
+  + 自然再生:      XX.XX/轮
+  + 高质量正反馈:   XX.XX/轮
+  - 低质量损耗:     XX.XX/轮
+  - 污名拖累:       XX.XX/轮
+  - 外部冲击:       XX.XX/轮
+  = 净变化:         XX.XX/轮
 ```
 
-**`input_params` field**: When present, contains the CLI parameters used for the run (num_men, num_women, seed, rounds, etc.). Use this to contextualize results — e.g., a high `market_imbalance` metric is expected when `input_params.num_men` >> `input_params.num_women`.
+### Step 5 — 断裂点时间线
 
-## 5. Nobel Benchmark Validation
-
-```bash
-# Validate environment results against Nobel prize predictions
-uv run nash validate --data env_results.json --type nobel
-
-# Run both validations (if applicable)
-uv run nash validate --data results.json --type both -o validation_report.json
+如果结果包含 breakpoints，输出时间线：
+```
+轮次    │ 事件
+────────┼──────────
+Round 8 │ 🔴 崩塌断裂点 — R < R_crit
+Round 14│ 🔴 价格断裂点 — 利润连续 10 轮为负
+Round 26│ 🔴 生态断裂点 — R < 50%K 且连续净损耗
 ```
 
-### Interpreting Nobel validation output
-
-| confidence | Meaning | Action |
-|---|---|---|
-| > 0.9 | Strong match to Nobel prediction | "The environment converged to the equilibrium predicted by Nobel-winning theory." |
-| 0.7 - 0.9 | Moderate match | "The environment mostly aligns with the Nobel prediction, with some deviations." |
-| < 0.7 | Weak match | "The environment did not converge to the expected equilibrium. Check the `suggestions` field." |
-
-The validation output includes a `conclusion` string (human-readable verdict) and a `suggestions` array (actionable next steps). Always read both and relay to the user.
-
-## 6. Visualization Guide
+## 诺贝尔基准验证
 
 ```bash
-# All available charts (auto-detects what data supports)
-uv run nash viz --data results.json --type all -o charts.png
-
-# Specific chart types (if supported by data)
-uv run nash viz --data results.json --type gini -o gini.png
-uv run nash viz --data results.json --type hostility -o hostility.png
+uv run nash validate --data results.json --type nobel
 ```
 
-### Which chart for which data
+| confidence | 含义 | 行动 |
+|------------|------|------|
+| > 0.9 | 强匹配诺贝尔预测 | "该环境收敛到了诺贝尔奖理论预测的均衡。" |
+| 0.7-0.9 | 中等匹配 | "基本符合理论预测，存在一些偏差。" |
+| < 0.7 | 弱匹配 | "未收敛到预期均衡。检查 suggestions 字段。" |
 
-| Chart type | Data requirement | What it shows |
-|---|---|---|
-| `gini` | `gini_history` in JSON | Inequality trend over time |
-| `hostility` | `hostility_history` in JSON | Conflict trend over time |
-| `all` | Auto-detect from `history` | Multi-panel of all available time-series |
+## 社会信任公地专项指标解读
 
-**Important notes:**
-- Environment results (from `--preset hawk_dove` etc.) use `viz --type all` which auto-extracts numeric time-series from the `history` array.
-- Each environment produces different metrics — viz auto-discovers available fields.
-- If unsure, always use `--type all`.
+| 指标 | 含义 | 健康范围 | 危险信号 |
+|------|------|---------|---------|
+| `trust_depletion_rate` | 信任从初始到最终的枯竭比例 | < 0.2 | > 0.5 |
+| `sustainability_index` | 组合式可持续性（五因子加权） | > 0.6 | < 0.3 |
+| `price_decline_rate` | 价格从窗口始到末的下降比例 | < 0.1 | > 0.5 |
+| `avg_profit_health` | 利润相对 base_price 的健康度 | > 0.3 | < 0.1 |
+| `avg_quality` | 平均活动质量 | > 0.5 | < 0.2 |
+| `avg_stigma` | 污名存量 | < 200 | > 500 |
 
-## 7. Agent Team Multi-Perspective Analysis
+## 稳态分类解读
 
-When analyzing complex results (multiple environments, hypothesis tests, or surprising outcomes), deploy an agent team to interpret from different angles:
+| 稳态类型 | Emoji | 含义 | 行动建议 |
+|----------|-------|------|---------|
+| `healthy_equilibrium` | ✅ | 高信任 + 正利润 + 稳定 | 当前参数组合可持续 |
+| `low_trust_trap` | ⚠️ | 低信任但稳定（"死得很稳"） | 系统僵化，需外部干预打破 |
+| `collapsed_equilibrium` | ❌ | 信任归零 + 价格归零 | 市场已拒收，需重建信任 |
+| `transitioning` | ⏳ | 仍在变化中 | 增加轮次继续观察 |
+
+## Agent Team 多视角分析
+
+复杂/意外结果时，部署 4 个并行分析 Agent：
 
 ```
-# Launch analysis team in parallel:
-Agent({description: "Economic theory perspective",
-       prompt: "Read results.json. From a pure game theory perspective:
-                1. Does the result match the Nash equilibrium prediction?
-                2. Are there any anomalies that suggest model misspecification?
-                3. What would a theorist question about these results?
-                Report in under 200 words."})
-
-Agent({description: "Empirical/statistical perspective",
-       prompt: "Read results.json. From a statistical perspective:
-                1. Is the convergence convincing (check trend, not just final value)?
-                2. Are there signs of insufficient rounds (ongoing drift)?
-                3. What statistical tests would strengthen the conclusion?
-                Report in under 200 words."})
-
-Agent({description: "Policy/practical perspective",
-       prompt: "Read results.json. From a policy/practical perspective:
-                1. What real-world implications can be drawn?
-                2. What are the limitations of extrapolating from this model?
-                3. What follow-up experiment would be most valuable?
-                Report in under 200 words."})
-
-Agent({description: "Devil's advocate",
-       prompt: "Read results.json. As devil's advocate:
-                1. What's the strongest counter-argument to the conclusion?
-                2. What hidden assumptions could invalidate the result?
-                3. What would make you reject these findings?
-                Report in under 200 words."})
+Agent 1: 经济学理论视角 — 结果是否符合原语理论预测？有无模型误设信号？
+Agent 2: 统计/实证视角 — 收敛可信吗？有无趋势漂移？需要更多轮次吗？
+Agent 3: 实践/政策视角 — 什么现实含义？外推局限在哪？最有价值的后续实验？
+Agent 4: 反对者视角 — 最强反驳论据？什么隐藏假设可能使结果无效？
 ```
 
-**Synthesize the 4 perspectives into:**
-1. **Consensus conclusion** — what all perspectives agree on
-2. **Dissenting views** — important disagreements or caveats
-3. **Confidence assessment** — how robust is the finding?
-4. **Recommended next step** — the single most valuable follow-up
+综合为：
+1. **共识结论**
+2. **分歧观点**
+3. **置信度评估**
+4. **下一步建议**
 
-## 8. Multi-File Comparison Analysis
+## 结论强度标注
 
-When comparing results from multiple runs (e.g., different environments or parameters):
+每个结论必须标注强度：
 
-```bash
-# Step 1: Validate all files in parallel
-Bash: uv run nash validate --data hawk_dove_results.json --type nobel
-Bash: uv run nash validate --data prisoners_dilemma_results.json --type nobel
-Bash: uv run nash validate --data public_goods_results.json --type nobel
-Bash: uv run nash validate --data common_pool_results.json --type nobel
+| 标签 | 含义 | 示例 |
+|------|------|------|
+| `模型支持` | 方程可严格推出的结论 | "信任低于 R_crit 后价格归零" |
+| `启发式解释` | 方向正确但不能精确量化 | "治理强度每增加 0.1，断裂点大约后移 20-30 轮" |
+| `评论性隐喻` | 语言层类比，动力学层不够格 | "这就像平台生态的'公地悲剧'" |
 
-# Step 2: Generate comparison table
-python -c "
-import json, glob
-files = sorted(glob.glob('*_results.json'))
-print('| Environment | Converged | Nobel Match | Key Metric |')
-print('|-------------|-----------|-------------|------------|')
-for f in files:
-    d = json.load(open(f))
-    env = d.get('environment', f)
-    conv = 'Yes' if d.get('converged') else 'No'
-    metrics = d.get('final_metrics', {})
-    key = list(metrics.items())[0] if metrics else ('N/A', 0)
-    print(f'| {env} | {conv} | - | {key[0]}={key[1]:.3f} |')
-"
-```
+## 展示结果模板
 
-## 9. Memory Persistence
+1. **结论一句话**: "社会信任公地模拟收敛到 collapsed_equilibrium — 第 8 轮发生崩塌。"
+2. **含义一句话**: "低治理 + 高污名敏感的组合导致信任在第 8 轮跌破临界值，系统快速崩溃。"
+3. **验证置信度**: "诺贝尔验证置信度 0.92（2009 Ostrom — 社会信任公地悲剧）。"
+4. **断裂点时间线**（如有）
+5. **贡献分解**（social_trust_commons 专项）
+6. **结论强度标注**
+7. **MOI 市场特征指标**（如有）
+8. **下一步建议**:
+   - "需要参数扫描来定位断裂临界点吗？"
+   - "要不要对照 physical CPR 看信任公地是否崩塌更快？"
+   - "要跑 5 seed 验证可复现性吗？"
 
-After completing analysis, persist conclusions to native memory:
+## 记忆持久化
 
 ```python
 mcp__memory__add_observations({
-    "observations": [
-        {
-            "entityName": f"nash-analysis-{date}-{brief-slug}",
-            "contents": [
-                "Analysis: <brief description>",
-                "Environment: <preset name>",
-                "Result: <converged / not converged>",
-                "Nobel confidence: <confidence>",
-                "Key metrics: <summary>",
-                "Follow-up recommendation: <suggestion>",
-                "Date: <today>"
-            ]
-        }
-    ]
+    "observations": [{
+        "entityName": f"nash-analysis-{date}-{slug}",
+        "contents": [
+            "分析: <简述>",
+            "环境/原语: <type>",
+            "结果: <equilibrium_type>",
+            "诺贝尔置信度: <confidence>",
+            "断裂点: <如有>",
+            "下一步建议: <action>",
+            "日期: <today>"
+        ]
+    }]
 })
 ```
 
-Also create relations to link analysis to its source experiment:
-```python
-mcp__memory__create_relations({
-    "relations": [
-        {
-            "from": f"nash-analysis-{date}-{slug}",
-            "to": f"experiment:{experiment_id}",
-            "relationType": "analyzes"
-        }
-    ]
-})
-```
-
-## 10. Presenting Results to Human
-
-1. **Lead with the conclusion** in plain language:
-   - "The hawk-dove simulation converged to the ESS prediction (deviation 4.4%)."
-   - "The common pool environment exhibited the tragedy of the commons (depletion rate 73%)."
-
-2. **Explain what it means** in one sentence:
-   - "This means the evolutionary dynamics reached the predicted equilibrium."
-
-3. **Show the validation confidence and Nobel reference:**
-   - "Nobel validation confidence: 0.92 (2005, Aumann/Schelling — ESS theory)"
-
-4. **Describe the charts** (if viz was generated). 1-2 sentences per chart.
-
-5. **Report MOI market metrics** when present in matching/spence results:
-   - `matching_search_intensity` (avg rejections per supplier): "Market X requires 27.7 search steps per supplier vs 1.7 for a balanced market — high intermediary value."
-   - `market_imbalance` (0=balanced, ~1=severely imbalanced): "Market imbalance of 0.85 means the supply side is 7× larger than demand."
-   - `unmatched_ratio` (fraction that couldn't match): "85% of suppliers have no matching buyer — strong intermediary opportunity."
-   - `signal_noise_ratio` (misclassification rate): "With signal_noise_ratio=0.41, the market struggles to distinguish quality — intermediary certification adds value."
-
-6. **Suggest next steps** proactively:
-   - "Would you like to run a parameter sweep to find the tipping point?"
-   - "Should we compare this against a different environment?"
-   - "Want me to run 5 seeds to verify reproducibility?"
-
-**Never**: dump raw JSON at the user. Always interpret first.
-
-## 11. Error Recovery
-
-### "matplotlib not installed"
-```
-pip install matplotlib
-```
-Then retry the viz command.
-
-### "No plot data available"
-The data format does not match the expected schema. Verify:
-- The file is valid NASH run output JSON
-- Check `history` array exists and has numeric fields
-
-### General troubleshooting flow
-```
-Error?
-├─ matplotlib error -> pip install matplotlib
-├─ missing key error -> Check data type detection (Section 4)
-├─ schema error -> Verify the file is valid NASH output
-└─ unknown error -> Read the full error message
-```
-
-## 12. CLI Quick Reference
+## CLI 快速参考
 
 ```bash
-# Validation
 uv run nash validate --data <file> --type nobel
 uv run nash validate --data <file> --type both -o report.json
-
-# Visualization
 uv run nash viz --data <file> --type all -o charts.png
 ```
 
-## 13. Decision Tree
+## 交叉引用
 
-```
-User asks to analyze results
-├─ No file specified? -> Ask: "Which results file should I analyze?"
-├─ Have a file -> Read first to detect data type
-│   ├─ Has "environment" (Environment data)
-│   │   └─ Parallel: validate nobel + viz --type all
-│   ├─ Have multiple files -> Comparison mode (Section 8)
-│   └─ Unknown format -> Read more of the file to determine type
-├─ Complex/surprising results -> Agent team multi-perspective (Section 7)
-├─ Error: matplotlib missing -> pip install matplotlib, retry
-├─ Error: no plot data -> Check file format
-└─ Success -> Interpret, persist to memory, present to user
-    └─ MUST ask: "Would you like to run more rounds? Compare environments? Sweep parameters?"
-```
-
-## 14. Cross-references
-
-- [[nash-cli]] -- CLI execution engine (all validate/viz commands)
-- [[nash-run]] -- to run more simulations and generate new data
-- [[nash-env]] -- to explore other game environments for comparison
-- [[nash-game-theory]] -- to create new custom environments to test theories
+- [[nash-env]] — 建模方案来源
+- [[nash-run]] — 生成新仿真数据
+- [[nash-game-theory]] — 创建新环境/原语
+- `src/primitives.py` — 原语库 + 约束编译器源码

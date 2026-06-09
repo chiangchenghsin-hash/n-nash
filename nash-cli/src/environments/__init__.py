@@ -11,6 +11,7 @@ from .hawk_dove import HawkDoveEnvironment
 from .public_goods import PublicGoodsEnvironment
 from .two_sided_matching import TwoSidedMatchingEnvironment
 from .auction_common_value import AuctionCommonValueEnvironment
+from .social_trust_commons import SocialTrustCommonsEnvironment
 
 __all__ = [
     "BaseEnvironment",
@@ -22,5 +23,6 @@ __all__ = [
     "HawkDoveEnvironment",
     "PublicGoodsEnvironment",
     "TwoSidedMatchingEnvironment",
-    "AuctionCommonValueEnvironment"
+    "AuctionCommonValueEnvironment",
+    "SocialTrustCommonsEnvironment",
 ]

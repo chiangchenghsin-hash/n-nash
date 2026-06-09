@@ -52,7 +52,7 @@ def _safe_creator_kwargs(creator: Callable[..., Any]) -> Dict[str, Any]:
     for name, param in sig.parameters.items():
         if name in ("num_rounds",):
             kwargs[name] = 1
-        elif name in ("num_agents", "num_workers", "num_bidders"):
+        elif name in ("num_agents", "num_workers", "num_bidders", "num_organizers"):
             kwargs[name] = 2
         elif name in ("num_firms",):
             kwargs[name] = 1

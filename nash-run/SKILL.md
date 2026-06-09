@@ -1,421 +1,177 @@
 ---
 name: nash-run
-description: "Use when the user asks to run a simulation, execute an experiment, test a game theory model, sweep parameters, compare environments. Triggers on: run simulation, execute experiment, test game, hawk dove, prisoner's dilemma, public goods, common pool, vickrey, parameter sweep, start experiment, compare models."
+description: "Use when the user asks to run a simulation, execute an experiment, test a game theory model, sweep parameters, compare environments. Triggers on: run simulation, execute experiment, test game, hawk dove, prisoner's dilemma, public goods, common pool, vickrey, parameter sweep, start experiment, compare models, social trust."
 ---
 
-# NASH Run — Simulation Execution (Agent Team Mode)
+# NASH Run — Simulation Execution (v2)
 
-You are a game theory simulation agent. You execute experiments by invoking the NASH CLI (`uv run nash`). All commands output JSON to stdout, progress to stderr.
+你是博弈论仿真执行器。通过 NASH CLI (`uv run nash`) 编排可复现实验。**运行前必须展示图谱结构、参数卡、约束状态**。
 
-> **Memory:** This skill uses Claude Code's native memory system for context persistence. No additional MCP setup needed.
+> **Memory:** This skill uses Claude Code's native memory system.
 
-## Multilingual Summary / 多语言概要 / 多言語概要
+## Multilingual Summary
 
-- English: Orchestrate reproducible simulations (multi-seed, sweeps, multi-model comparisons) by calling the CLI; always follow with validation + visualization; report results with Mermaid/HTML-friendly outputs.
-- 中文：通过 CLI 编排可复现实验（多种子、参数扫描、多模型对照）；默认并行跑 validate + viz；用 Mermaid/HTML 友好的格式产出报告。
-- 日本語：CLI を呼び出して再現可能な実験（複数シード、パラメータ掃引、モデル比較）を編成し、必ず検証と可視化を並列実行。Mermaid/HTML に適した形式でレポート化する。
+- English: Execute reproducible simulations; before running, display topology graph, parameter card with provenance, and constraint status; never run before constraint compilation is clear.
+- 中文：执行可复现仿真；运行前必须展示图谱结构、参数卡（含来源标注）、约束状态；不允许在约束未通过前直接运行。
 
-## Notes / 约束 / 注意
+## 核心理念：运行前先校验
 
-- English: The scripts must remain generic (no case-specific hardcoding). Core value is the agent-side reasoning: subagents, agent teams, research, and report generation.
-- 中文：脚本必须保持通用（不做案例硬编码）。核心价值在通用 Agents 的推理与编排：subagents、agent teams、调研与报告生成。
-- 日本語：スクリプトは汎用性を保つ（ケース固有のハードコード禁止）。価値の中心は subagents / agent teams による調査・判断・レポート生成。
-
-## 核心理念：火力全开
-
-**Every run deserves a validate+viz follow-up. Every comparison deserves parallel execution. Every experiment deserves memory persistence.**
-
-- Single run → background it, move on to analysis while it runs
-- Multi-model comparison → ALL models in parallel, single message
-- Multi-seed → ALL seeds in parallel, compute mean±std after
-- Parameter sweep → split range across subagents
-- After ANY run → validate + viz in parallel, persist to memory
-
-## 1. When to Use
-
-- User asks to run a simulation, experiment, or game theory test
-- User mentions any preset name: `hawk_dove`, `prisoners_dilemma`, `public_goods`, `common_pool`, `vickrey`, `spence`, `matching`, `auction_common_value`
-- User wants to sweep parameters: "sweep resource_value from 1 to 10"
-- User wants to compare multiple environments or configurations
-- User says: run, simulate, test, experiment, sweep, execute, start experiment
-
-## 2. Quick Decision: Which Execution Pattern?
-
+**新规则（v2）**：
 ```
-User wants to run simulation?
-├─ Single model, quick (rounds <= 200) → Preset run + auto validate+viz (Section 3)
-├─ Single model, heavy (rounds > 200) → Background task + notify on complete (Section 4)
-├─ Compare 2-8 models → Parallel execution ALL at once (Section 5)
-├─ Explore parameter space → Config template + sweep (Section 6)
-├─ Research-grade reproducibility → 5-seed parallel (Section 7)
-└─ Full hypothesis test → Control + treatment groups, both with 5 seeds (Section 8)
+运行前必须展示：
+  1. 图谱结构摘要
+  2. 参数卡（每个参数标注来源）
+  3. 约束状态（通过/警告/失败）
+  4. 稳定性风险提示
 ```
 
-## 3. Standard Preset Run (with Auto Analysis)
+**禁止**: 在未完成约束编译和符号审计前直接跑大量实验。
 
-Run a known game environment. Always follow with validate+viz in parallel:
+## 快速决策
+
+```
+用户请求运行仿真
+├─ 单一预设 → 标准运行 → 并行 validate + viz
+├─ 参数扫描 → sweep 命令
+├─ 多模型对比 → 并行 run
+├─ 研究级复现 → 5-seed batch → 统计检验
+└─ 完整假设检验 → control vs treatment → 统计对比
+```
+
+## 标准预设运行
 
 ```bash
-# Step 1: Run the simulation
-uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o results.json
+uv run nash run --preset <name> --agents N --rounds N --seed N -o results.json
+```
 
-# Step 2: Analyze in parallel (launch both simultaneously)
+### 预设快速参考
+
+| 预设 | 环境 ID | 推荐 agents | 推荐 rounds | Nobel 年 |
+|------|---------|------------|-------------|----------|
+| `hawk_dove` | hawk_dove | 100 | 300 | 2005 |
+| `prisoners_dilemma` | repeated_prisoners_dilemma | 20 | 400 | 2005 |
+| `public_goods` | public_goods | 50 | 300 | 2009 |
+| `common_pool` | common_pool_resource | 50 | 300 | 2009 |
+| `social_trust_commons` | social_trust_commons | 20 | 400 | 2009 |
+| `vickrey` | vickrey_auction | 20 | 200 | 1996 |
+| `spence` | spence_signaling | 100 | 300 | 2001 |
+| `matching` | two_sided_matching | 50/50 | 200 | 2012 |
+| `auction_common_value` | auction_common_value | 10 | 200 | 2020 |
+
+### 社会信任公地专用参数
+
+```bash
+# 脆弱信任场景（低治理 → 崩塌）
+uv run nash run --preset social_trust_commons --rounds 400 --seed 42 \
+  --params '{"governance_strength": 0.03, "num_organizers": 30, "natural_repair_rate": 0.003}'
+
+# 强治理场景（高治理 → 健康稳态）
+uv run nash run --preset social_trust_commons --rounds 400 --seed 42 \
+  --params '{"governance_strength": 0.9, "num_organizers": 15, "natural_repair_rate": 0.08}'
+```
+
+### 运行后必须并行验证
+
+```bash
+# 同时启动（同一消息中）：
 Bash: uv run nash validate --data results.json --type nobel -o validation.json
 Bash: uv run nash viz --data results.json --type all -o charts.png
-
-# Step 3: Persist to memory
-mcp__memory__add_observations({...})
 ```
 
-### Preset Quick Reference
+## 参数卡模板（运行前展示）
 
-| Preset | Recommended --agents | Typical --rounds | Nobel Year |
-|--------|---------------------|-------------------|------------|
-| `hawk_dove` | 100 | 200 | 2005 (Aumann, Schelling) |
-| `prisoners_dilemma` | 100 | 200 | 2005 (Aumann, Schelling) |
-| `public_goods` | 100 | 200 | 2009 (Ostrom) |
-| `common_pool` | 100 | 200 | 2009 (Ostrom) |
-| `vickrey` | 50 | 100 | 1996 (Vickrey) |
-| `spence` | 50 | 100 | 2001 (Akerlof, Spence, Stiglitz) |
-| `matching` | 50 | 100 | 2012 (Roth, Shapley) |
-| `auction_common_value` | 50 | 100 | 2020 (Milgrom, Wilson) |
+当从 [[nash-env]] 收到建模方案后，运行前先展示参数卡：
 
-Key parameters:
-- `--preset`: game environment (REQUIRED)
-- `--agents`: number of agents (10-1000) — shortcut for the primary count parameter
-- `--rounds`: simulation rounds (default: 100)
-- `--seed`: random seed for reproducibility
-- `--seeds`: comma-separated seeds for batch run (e.g. `--seeds 42,43,44`)
-- `--params`: environment-specific parameters as JSON (see table below)
-- `-o` / `--output`: save results to JSON file
+```
+| 参数 | 值 | 来源 | 含义 | 低值解释 | 高值解释 | 风险 |
+|------|-----|------|------|---------|---------|------|
+| governance_strength | 0.3 | 特征映射 | 平台治理强度 | 弱治理 | 严实名/严处罚 | 过高压死活动 |
+| stigma_drag | 0.15 | 原语默认 | 污名拖累系数 | 公众健忘 | 污名粘滞 | 过高→快速崩塌 |
+| natural_repair_rate | 0.03 | 场景假设 | 信任修复速率 | 一伤难愈 | 容易重启 | 过高掩盖问题 |
+| price_elasticity | 1.5 | 原语默认 | 价格对信任的弹性 | 价格迟钝 | 价格过度敏感 | 过高→价格跳水 |
+| quality_cost_coefficient | 0.3 | 约束推导 | 维持质量所需成本 | 质量廉价 | 质量昂贵 | 过高→普遍降质 |
+```
 
-### Environment-Specific Parameters (`--params`)
+**每个参数必须标注来源**: `原语默认` | `特征映射` | `约束推导` | `场景假设`
 
-Pass environment-specific parameters that `--agents` cannot express:
+## 约束状态展示（运行前展示）
+
+```
+约束编译报告:
+  ✅ 状态空间: 所有变量在合法域内
+  ✅ 单调性: trust → price 方向正确
+  ⚠️ 流量守恒: stigma 流入/流出未显式对账（不影响运行）
+  ✅ 相变边界: R < 200 时价格归零逻辑已就绪
+
+稳定性风险: LOW — 推荐先单 seed 验证，再 5-seed 复现
+```
+
+## 参数扫描
 
 ```bash
-# Asymmetric matching market (supply >> demand)
-uv run nash run --preset matching \
-  --params '{"num_men": 50, "num_women": 200}' \
-  --rounds 200 --seed 42 -o result.json
+# 扫治理强度
+uv run nash sweep --preset social_trust_commons \
+  --param governance_strength --range 0.01,0.9,10 --rounds 300 -o sweep_gov.json
 
-# Low discount factor prisoners_dilemma (short-term incentives)
-uv run nash run --preset prisoners_dilemma \
-  --params '{"num_agents": 100, "discount_factor": 0.3}' \
-  --rounds 200 --seed 42 -o result.json
-
-# Spence with high ability threshold (hard to distinguish workers)
-uv run nash run --preset spence \
-  --params '{"num_workers": 100, "num_firms": 20, "high_ability_threshold": 0.8}' \
-  --rounds 200 --seed 42 -o result.json
+# 扫组织者数量
+uv run nash sweep --preset social_trust_commons \
+  --param num_organizers --range 5,50,10 --rounds 300 -o sweep_n.json
 ```
 
-| Preset | Parameter | Type | Default | Range | MOI Relevance |
-|--------|-----------|------|---------|-------|---------------|
-| `matching` | `num_men` | int | 10 | [2, 500] | Supplier side count |
-| `matching` | `num_women` | int | 10 | [2, 500] | Buyer side count |
-| `spence` | `num_workers` | int | 100 | [10, 500] | Worker (supplier) count |
-| `spence` | `num_firms` | int | 10 | [5, 200] | Firm (buyer) count |
-| `spence` | `high_ability_threshold` | float | 0.5 | [0.1, 0.9] | Quality signal clarity |
-| `prisoners_dilemma` | `num_agents` | int | 20 | [4, 500] | Participant count |
-| `prisoners_dilemma` | `discount_factor` | float | 0.95 | [0.1, 0.99] | Long-term relationship importance |
-| `prisoners_dilemma` | `learning_rate` | float | 0.1 | [0.01, 0.5] | Strategy adaptation speed |
-| `hawk_dove` | `num_agents` | int | 100 | [10, 500] | Participant count |
-| `hawk_dove` | `resource_value` | float | 4.0 | [1.0, 20.0] | Market profit margin |
-| `hawk_dove` | `conflict_cost` | float | 6.0 | [1.0, 30.0] | Competition intensity |
+## 多模型并行对比
 
-**Notes:**
-- `--params` is optional — defaults are used when omitted (backward compatible).
-- `--agents` still works as a shortcut for the primary count parameter; if `--params` contains the same key, `--params` wins.
-- Invalid or out-of-range values produce a clear error listing supported parameters.
+一次消息中同时启动（不串行）：
+```bash
+# 并行启动 3 个模型
+Bash: uv run nash run --preset social_trust_commons --rounds 300 --seed 42 -o stc.json
+Bash: uv run nash run --preset common_pool --rounds 300 --seed 42 -o cpr.json
+Bash: uv run nash run --preset prisoners_dilemma --rounds 300 --seed 42 -o pd.json
+```
 
-### New Environment Metrics (MOI-relevant)
-
-**matching** (after `--params` supply/demand calibration):
-- `matching_search_intensity`: avg rejections per supplier — high = inefficient market, high intermediary value
-- `market_imbalance`: `|num_men - num_women| / max(num_men, num_women)` — 0 = balanced, ~1 = severely imbalanced
-- `unmatched_ratio`: fraction that failed to match — high = intermediary needed
-
-**spence**:
-- `signal_noise_ratio`: worker misclassification rate by education signal — 0 = clear signal, 1 = noise (high = intermediary value for quality certification)
-
-## 4. Background Execution for Heavy Simulations
-
-When rounds > 200 or agents > 500, run in background. You'll be notified on completion.
+## 多 Seed 复现
 
 ```bash
-# Launch in background — don't wait
-Bash(run_in_background=true): uv run nash run --preset hawk_dove --agents 500 --rounds 1000 --seed 42 -o large_run.json
+uv run nash run --preset social_trust_commons --rounds 300 --seeds 42,123,456,789,1024 -o multi_seed.json
 ```
 
-While the simulation runs, continue with other work. When notified:
-1. Read `large_run.json` to check convergence
-2. Launch validate+viz in parallel
-3. Report results to user
-
-**Pro tip:** You can launch multiple heavy simulations in background simultaneously:
-```
-Bash(run_in_background=true): uv run nash run --preset hawk_dove --agents 500 --rounds 500 --seed 42 -o bg_hd.json
-Bash(run_in_background=true): uv run nash run --preset prisoners_dilemma --agents 500 --rounds 500 --seed 42 -o bg_pd.json
-Bash(run_in_background=true): uv run nash run --preset public_goods --agents 500 --rounds 500 --seed 42 -o bg_pg.json
-Bash(run_in_background=true): uv run nash run --preset common_pool --agents 500 --rounds 500 --seed 42 -o bg_cp.json
-```
-
-## 5. Parallel Multi-Model Comparison (Agent Team Power)
-
-When comparing environments, launch ALL in ONE message. Never run sequentially.
-
-```bash
-# User asks: "Compare hawk_dove, prisoners_dilemma, public_goods, and common_pool"
-
-# Launch ALL 4 in ONE message as parallel Bash calls:
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o compare_hawk_dove.json
-Bash: uv run nash run --preset prisoners_dilemma --agents 100 --rounds 200 --seed 42 -o compare_pd.json
-Bash: uv run nash run --preset public_goods --agents 100 --rounds 200 --seed 42 -o compare_pg.json
-Bash: uv run nash run --preset common_pool --agents 100 --rounds 200 --seed 42 -o compare_cp.json
-```
-
-**After all complete, collect results and present comparison table:**
-
-```bash
-python -c "
-import json, glob
-print('| Environment | Converged | Key Metric | Value |')
-print('|-------------|-----------|------------|-------|')
-for f in sorted(glob.glob('compare_*.json')):
-    with open(f) as fp:
-        d = json.load(fp)
-    env = d.get('environment', 'unknown')
-    conv = 'Yes' if d.get('converged') else 'No'
-    metrics = d.get('final_metrics', {})
-    for k, v in metrics.items():
-        print(f'| {env} | {conv} | {k} | {v:.3f} |')
-        break
-"
-```
-
-**Then validate ALL in parallel:**
-```bash
-Bash: uv run nash validate --data compare_hawk_dove.json --type nobel
-Bash: uv run nash validate --data compare_pd.json --type nobel
-Bash: uv run nash validate --data compare_pg.json --type nobel
-Bash: uv run nash validate --data compare_cp.json --type nobel
-```
-
-## 6. Parameter Sweep
-
-When exploring a parameter range, first generate a config template, then sweep.
-
-### Small sweep (<= 100 configs)
-
-```bash
-# Step 1: Generate config template
-uv run nash config template --preset hawk_dove -o cfg.json
-
-# Step 2: Sweep over a parameter
-uv run nash sweep --config cfg.json --param resource_value --range 1,10 --step 1 --rounds 200 -o sweep.json
-```
-
-### Large sweep (> 100 configs) — Split across subagents
-
-Split the range across 4 parallel subagents:
-
-```
-Agent({description: "Sweep part 1",
-       prompt: "Run: uv run nash sweep --config cfg.json --param resource_value --range 0,125 --step 25 --rounds 100 -o sweep_p1.json"})
-
-Agent({description: "Sweep part 2",
-       prompt: "Run: uv run nash sweep --config cfg.json --param resource_value --range 125,250 --step 25 --rounds 100 -o sweep_p2.json"})
-
-Agent({description: "Sweep part 3",
-       prompt: "Run: uv run nash sweep --config cfg.json --param resource_value --range 250,375 --step 25 --rounds 100 -o sweep_p3.json"})
-
-Agent({description: "Sweep part 4",
-       prompt: "Run: uv run nash sweep --config cfg.json --param resource_value --range 375,500 --step 25 --rounds 100 -o sweep_p4.json"})
-```
-
-**Merge when all complete:**
-
-```bash
-python -c "
-import json, glob
-all_results = []
-for f in sorted(glob.glob('sweep_p*.json')):
-    with open(f) as fp:
-        data = json.load(fp)
-        all_results.extend(data['results'])
-with open('sweep_merged.json', 'w') as out:
-    json.dump({'status': 'completed', 'results': all_results, 'total': len(all_results)}, out, indent=2)
-"
-```
-
-## 7. Multi-Seed Reproducibility (Default for Research)
-
-For research-grade results, always run 5 seeds. Two approaches:
-
-### Option A — `--seeds` batch (single CLI call, recommended)
-
-```bash
-uv run nash run --preset hawk_dove --agents 100 --rounds 200 \
-  --seeds 42,123,456,789,1024 -o multi_seed.json
-```
-
-Output includes `aggregated_metrics` with mean/std/min/max per metric and `per_seed_results` with individual runs.
-
-```json
-{
-  "seeds": [42, 123, 456, 789, 1024],
-  "aggregated_metrics": {
-    "hawk_ratio": {"mean": 0.667, "std": 0.016, "min": 0.640, "max": 0.690}
-  },
-  "per_seed_results": [
-    {"seed": 42, "converged": true, "final_metrics": {...}},
-    ...
-  ]
-}
-```
-
-### Option B — Parallel `--seed` (for very heavy simulations, launch all in parallel)
-
-```bash
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o seed_42.json
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 123 -o seed_123.json
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 456 -o seed_456.json
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 789 -o seed_789.json
-Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 1024 -o seed_1024.json
-```
-
-**After all complete, compute mean±std:**
-
-```bash
-python -c "
-import json, glob, numpy as np
-seeds = []
-for f in sorted(glob.glob('seed_*.json')):
-    with open(f) as fp:
-        d = json.load(fp)
-        seeds.append(d['final_metrics'])
-
-# Compute per-metric mean and std
-keys = seeds[0].keys()
-for k in keys:
-    vals = [s[k] for s in seeds]
-    print(f'{k}: {np.mean(vals):.4f} ± {np.std(vals):.4f}')
-print(f'CV: {np.std([s[list(keys)[0]] for s in seeds]) / np.mean([s[list(keys)[0]] for s in seeds]):.1%}')
-"
-```
-
-Report: if CV < 10%, results are robust. Otherwise, increase seeds or rounds.
-
-## 8. Full Hypothesis Test (Control vs Treatment)
-
-When testing a causal hypothesis (e.g., "does punishment reduce free-riding?"), design control and treatment groups:
-
-**Step 1 — Generate base configs**
-
-```bash
-uv run nash config template --preset public_goods -o ctrl_cfg.json
-uv run nash config template --preset public_goods -o treat_cfg.json
-# Manually edit treat_cfg.json to add treatment (e.g., punishment mechanism)
-```
-
-**Step 2 — Run both groups with 5 seeds each (ALL in parallel)**
-
-```bash
-# Control group (5 seeds)
-Bash: uv run nash run --config ctrl_cfg.json --seed 42 -o ctrl_s42.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 43 -o ctrl_s43.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 44 -o ctrl_s44.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 45 -o ctrl_s45.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 46 -o ctrl_s46.json
-# Treatment group (5 seeds)
-Bash: uv run nash run --config treat_cfg.json --seed 42 -o treat_s42.json
-Bash: uv run nash run --config treat_cfg.json --seed 43 -o treat_s43.json
-Bash: uv run nash run --config treat_cfg.json --seed 44 -o treat_s44.json
-Bash: uv run nash run --config treat_cfg.json --seed 45 -o treat_s45.json
-Bash: uv run nash run --config treat_cfg.json --seed 46 -o treat_s46.json
-```
-
-**Step 3 — Statistical comparison**
-
-```bash
-uv run nash validate --type statistical \
-  --control-group "$(python -c 'import json,glob; print(json.dumps([json.load(open(f))["final_metrics"] for f in sorted(glob.glob("ctrl_s*.json"))]))')" \
-  --treatment-group "$(python -c 'import json,glob; print(json.dumps([json.load(open(f))["final_metrics"] for f in sorted(glob.glob("treat_s*.json"))]))')"
-```
-
-Report: p-value, effect size (Cohen's d), and whether hypothesis is supported.
-
-## 9. Memory Persistence (Every Run)
-
-After EVERY experiment, persist to native memory. This builds a cross-session knowledge base.
+## 记忆持久化
 
 ```python
 mcp__memory__add_observations({
-    "observations": [
-        {
-            "entityName": f"experiment:{preset_name}-{timestamp}",
-            "contents": [
-                f"Preset: {preset_name}",
-                f"Config: agents={n_agents}, rounds={n_rounds}, seed={seed}",
-                f"Converged: {converged}",
-                f"Final metrics: {json.dumps(metrics)}",
-                f"Nobel validation: {nobel_conclusion}",
-                f"Timestamp: {iso_timestamp}"
-            ]
-        }
-    ]
+    "observations": [{
+        "entityName": f"nash-experiment-{date}",
+        "contents": [
+            "实验: <preset/原语组合>",
+            "参数: <key params>",
+            "种子数: <N>",
+            "主要发现: <摘要>",
+            "日期: <today>"
+        ]
+    }]
 })
 ```
 
-**Minimum data to record for every run:**
-- Preset name, agent count, rounds, seed
-- Final metrics summary
-- Convergence status and message
-- Nobel validation result (if run)
-- Timestamp (ISO format)
-
-## 10. CLI Quick Reference
+## CLI 快速参考
 
 ```bash
-# Run presets
-uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o results.json
-uv run nash run --preset prisoners_dilemma --agents 100 --rounds 200 --seed 42
-uv run nash run --preset public_goods --agents 100 --rounds 200
-uv run nash run --preset common_pool --agents 100 --rounds 200
-uv run nash run --preset vickrey --agents 50 --rounds 100
-uv run nash run --preset spence --agents 50 --rounds 100
-uv run nash run --preset matching --agents 50 --rounds 100
-uv run nash run --preset auction_common_value --agents 50 --rounds 100
+# 运行
+uv run nash run --preset <name> --agents N --rounds N --seed N -o out.json
 
-# Environment-specific parameters (for MOI market calibration)
-uv run nash run --preset matching --params '{"num_men": 50, "num_women": 200}' --rounds 200 --seed 42
-uv run nash run --preset spence --params '{"high_ability_threshold": 0.3}' --rounds 100 --seed 42
-uv run nash run --preset hawk_dove --params '{"resource_value": 8, "conflict_cost": 3}' --rounds 200
+# 扫描
+uv run nash sweep --preset <name> --param <p> --range <lo,hi,steps> --rounds N
 
-# Multi-seed batch
-uv run nash run --preset matching --params '{"num_men": 50, "num_women": 200}' --rounds 200 --seeds 42,43,44,45,46 -o multi.json
+# 验证
+uv run nash validate --data results.json --type nobel
 
-# Config + sweep
-uv run nash config template --preset hawk_dove -o cfg.json
-uv run nash config validate cfg.json
-uv run nash sweep --config cfg.json --param resource_value --range 1,10 --step 1 --rounds 200 -o sweep.json
+# 可视化
+uv run nash viz --data results.json --type all -o charts.png
+
+# 列出所有环境
+uv run nash env list
 ```
 
-## 11. Error Recovery
+## 交叉引用
 
-| Error | Likely Cause | Fix |
-|-------|-------------|-----|
-| `No module named 'src'` | Python path not set | Run from nash-cli/ root directory. |
-| `Unknown preset: X` | Typo or unsupported preset | Run `uv run nash env list` to see all 8 presets. |
-| Simulation crashes mid-run | Too many agents | Reduce `--agents` to 50-100, reduce `--rounds` to 50-100. |
-| Sweep config parse error | Wrong config format | Use `config template --preset <name>` first, then edit. |
-| matplotlib not installed | Missing dep | `pip install matplotlib` |
-| Background task timeout | Too many rounds | Reduce rounds or split into multiple shorter runs. |
-
-## 12. Cross-References
-
-- [[nash-cli]] -- CLI execution engine (all run/sweep/config commands)
-- [[nash-env]] -- to list available environments and understand game mechanics before running
-- [[nash-analyze]] -- to statistically validate results and generate visualizations after running
-- [[nash-game-theory]] -- to create new custom game environments
+- [[nash-env]] — 建模方案来源（特征向量 + 原语激活 + 参数卡）
+- [[nash-analyze]] — 运行后的验证 + 可视化 + 多视角解读
+- [[nash-game-theory]] — 需要新环境/原语时
