@@ -1,0 +1,202 @@
+{
+  "status": "completed",
+  "preset": "hawk_dove",
+  "environment": "hawk_dove",
+  "environment_type": "hawk_dove",
+  "input_params": {
+    "seed": 42,
+    "rounds": 20
+  },
+  "total_rounds": 20,
+  "converged": false,
+  "convergence_message": "数据不足，需要至少 50 轮",
+  "final_metrics": {
+    "hawk_ratio": 0.55,
+    "ess_deviation": 0.11666666666666659,
+    "strategy_stability": 0.9450000000000001
+  },
+  "history": [
+    {
+      "round": 1,
+      "hawk_ratio": 0.4,
+      "avg_payoff_hawk": -1.0,
+      "avg_payoff_dove": 2.0,
+      "ess_deviation": 0.2666666666666666
+    },
+    {
+      "round": 2,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 4.0,
+      "avg_payoff_dove": 0.6666666666666666,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 3,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 4,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 5,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 6,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 4.0,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 7,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 8,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 4.0,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 9,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 2.3333333333333335,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 10,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 0.6666666666666666,
+      "avg_payoff_dove": 1.0,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 11,
+      "hawk_ratio": 0.7,
+      "avg_payoff_hawk": 2.3333333333333335,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.033333333333333326
+    },
+    {
+      "round": 12,
+      "hawk_ratio": 0.7,
+      "avg_payoff_hawk": 1.1428571428571428,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.033333333333333326
+    },
+    {
+      "round": 13,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": -0.2857142857142857,
+      "avg_payoff_dove": 1.3333333333333333,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 14,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 0.6666666666666666,
+      "avg_payoff_dove": 1.0,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 15,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 0.6666666666666666,
+      "avg_payoff_dove": 1.0,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 16,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 4.0,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 17,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 18,
+      "hawk_ratio": 0.5,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.16666666666666663
+    },
+    {
+      "round": 19,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 2.0,
+      "avg_payoff_dove": 0.8,
+      "ess_deviation": 0.06666666666666665
+    },
+    {
+      "round": 20,
+      "hawk_ratio": 0.6,
+      "avg_payoff_hawk": 2.3333333333333335,
+      "avg_payoff_dove": 0.0,
+      "ess_deviation": 0.06666666666666665
+    }
+  ],
+  "config": {
+    "environment": {
+      "type": "hawk_dove",
+      "nobel_reference": {
+        "year": 2005,
+        "laureates": [
+          "Robert Aumann",
+          "Thomas Schelling"
+        ],
+        "contribution": "通过博弈论分析增强了我们对冲突和合作的理解"
+      }
+    },
+    "parameters": {
+      "num_agents": {
+        "value": 10
+      },
+      "resource_value": {
+        "value": 4.0
+      },
+      "conflict_cost": {
+        "value": 6.0
+      },
+      "num_rounds": {
+        "value": 20
+      }
+    },
+    "validation": {
+      "equilibrium_type": "ess",
+      "metrics": [
+        {
+          "name": "hawk_ratio",
+          "expected_value": 0.6666666666666666,
+          "tolerance": 0.1
+        },
+        {
+          "name": "strategy_stability",
+          "expected_value": 0.8,
+          "tolerance": 0.15
+        }
+      ]
+    }
+  }
+}

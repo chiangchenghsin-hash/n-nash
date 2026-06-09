@@ -26,9 +26,10 @@ description: "Analyze NASH simulation results. Use when the user asks to analyze
 
 ```
 有 results.json？
-├─ 有 "environment" → 诺贝尔验证 + 指标可视化
-├─ 有 "trust_history" / "stigma_history" → social_trust_commons 专项分析
-├─ 有 "breakpoints" → 断裂点时间线
+├─ 有 "environment_type" → 诺贝尔验证 + 指标可视化
+├─ 有 "trust_history" / "stigma_history" → social_trust_commons 专项分析（直接可用）
+├─ 有 "breakpoints" → 断裂点时间线（直接可用）
+├─ 有 "equilibrium_type" → 稳态分类解读
 ├─ 有 "history" 数组 → 时间序列可视化
 ├─ 多个 .json 文件 → 对比分析
 └─ 不确定 → 先读文件检查顶层 key
@@ -57,20 +58,24 @@ Bash: uv run nash viz --data results.json --type all -o charts.png
 
 ### Step 4 — 贡献分解（social_trust_commons 专项）
 
-对于 social_trust_commons 结果，从 history 中分解：
+对于 social_trust_commons 结果，从 `history` 数组（含 trust, quality, stigma, price, avg_profit）和 `trust_history`/`quality_history`/`stigma_history`/`price_history` 列表计算逐轮 delta，然后反推各贡献项的相对大小：
+
 ```
-信任变化的 N 大贡献项:
-  + 自然再生:      XX.XX/轮
-  + 高质量正反馈:   XX.XX/轮
-  - 低质量损耗:     XX.XX/轮
-  - 污名拖累:       XX.XX/轮
-  - 外部冲击:       XX.XX/轮
-  = 净变化:         XX.XX/轮
+信任变化的近似贡献分解（从序列 delta 推导）:
+  Δtrust ≈ 自然再生项 + 质量反馈项 + 污名拖累项 + 外部冲击项
+
+方法：读取相邻两轮的 trust/quality/stigma/price 变化量，
+按动力学方程 F2 的结构反推各分量的符号和相对大小。
+
+注意：这是从观测序列的近似反推，不是精确分解。
+如需精确分解，需要在环境代码中导出 per_component 字段。
 ```
 
-### Step 5 — 断裂点时间线
+### Step 5 — 断裂点时间线（social_trust_commons 专项）
 
-如果结果包含 breakpoints，输出时间线：
+social_trust_commons 的结果现在通过 run.py 直接输出 `breakpoints` 字段（三类断裂点）。
+
+读取 `breakpoints` 字典，如有 `total_breakpoints > 0` 则输出时间线：
 ```
 轮次    │ 事件
 ────────┼──────────
@@ -126,7 +131,9 @@ Agent 4: 反对者视角 — 最强反驳论据？什么隐藏假设可能使结
 1. **共识结论**
 2. **分歧观点**
 3. **置信度评估**
-4. **下一步建议**
+4. **惊喜发现** — 哪些结果偏离了 nash-run 的预注册声明？各 Agent 对此的解释是什么？
+5. **反决策条件共识** — 各 Agent 一致认为"如果 X 为真则结论反转"的条件有哪些？
+6. **下一步建议**
 
 ## 结论强度标注
 
@@ -147,10 +154,30 @@ Agent 4: 反对者视角 — 最强反驳论据？什么隐藏假设可能使结
 5. **贡献分解**（social_trust_commons 专项）
 6. **结论强度标注**
 7. **MOI 市场特征指标**（如有）
-8. **下一步建议**:
-   - "需要参数扫描来定位断裂临界点吗？"
-   - "要不要对照 physical CPR 看信任公地是否崩塌更快？"
-   - "要跑 5 seed 验证可复现性吗？"
+8. **预注册对比（强制）**：
+   ```
+   预期 vs 实际:
+     ✅ <指标 X>: 预期 [A,B], 实际 <值> ✓
+     ❌ <指标 Y>: 预期 [C,D], 实际 <值> ✗ — 可能原因: <简短分析>
+     ⚡ <指标 Z>: 预期之外 — 此为惊喜，可能意味着 <什么>
+   ```
+9. **反决策测试（强制）**：
+   ```
+   什么事实为真会让上述结论完全反转:
+     1. <事实 A> — 如果 X 不是 Y 而是 Z，则结论反转
+     2. <事实 B> — 如果 A 与 B 的实际关系与模型假设相反
+     3. <事实 C> — 如果阈值不在理论值附近
+
+   当前这些反转条件成立的可能性评估:
+     事实 A: <低/中/高> — <简短理由>
+     事实 B: <低/中/高> — <简短理由>
+     事实 C: <低/中/高> — <简短理由>
+   ```
+10. **下一步建议**:
+    - "需要参数扫描来定位断裂临界点吗？"
+    - "要不要对照 physical CPR 看信任公地是否崩塌更快？"
+    - "要跑 5 seed 验证可复现性吗？"
+    - "上述反决策条件中哪些可以设计实验来测试？"
 
 ## 记忆持久化
 

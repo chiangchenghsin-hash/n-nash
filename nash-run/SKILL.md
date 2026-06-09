@@ -23,9 +23,35 @@ description: "Use when the user asks to run a simulation, execute an experiment,
   2. 参数卡（每个参数标注来源）
   3. 约束状态（通过/警告/失败）
   4. 稳定性风险提示
+  5. 预注册声明（强制）
 ```
 
 **禁止**: 在未完成约束编译和符号审计前直接跑大量实验。
+
+### 预注册（强制）
+
+**在任何仿真运行之前，必须先声明预期结果。** 这是在跑出结果后防止"后视偏见解释"的机制。
+
+预注册声明必须包含：
+
+```
+预注册:
+  如果模型正确，我预期看到:
+    - <关键指标> 的预期区间: <MIN> ~ <MAX>
+    - 收敛/不收敛状态: <预期>
+    - <2-3 个具体可测的预测>
+
+  如果看到以下现象之一，我的模型可能有问题:
+    - <反证现象 A> — 意味着 <什么假设被推翻>
+    - <反证现象 B> — 意味着 <什么方向错了>
+    - <反证现象 C> — 意味着 <什么机制缺了>
+
+  严重性阈值:
+    如果 <指标 X> < <阈值>: 模型主要假设不可信
+    如果 <指标 Y> > <阈值>: 需要重新考虑原语选择
+```
+
+**执行后必须对比**：模拟完成后，显式标注哪些预期被满足、哪些被违反、哪些是惊喜。
 
 ## 快速决策
 
@@ -108,14 +134,19 @@ Bash: uv run nash viz --data results.json --type all -o charts.png
 
 ## 参数扫描
 
+sweep 需要先通过 `config template` 生成配置文件，然后用 `--config` 指定：
+
 ```bash
-# 扫治理强度
-uv run nash sweep --preset social_trust_commons \
-  --param governance_strength --range 0.01,0.9,10 --rounds 300 -o sweep_gov.json
+# 生成配置文件
+uv run nash config template --preset social_trust_commons -o stc_cfg.json
+
+# 扫治理强度（--range MIN,MAX，--step 单独指定）
+uv run nash sweep --config stc_cfg.json \
+  --param governance_strength --range 0.01,0.9 --step 0.1 --rounds 300 -o sweep_gov.json
 
 # 扫组织者数量
-uv run nash sweep --preset social_trust_commons \
-  --param num_organizers --range 5,50,10 --rounds 300 -o sweep_n.json
+uv run nash sweep --config stc_cfg.json \
+  --param num_organizers --range 5,50 --step 5 --rounds 300 -o sweep_n.json
 ```
 
 ## 多模型并行对比
@@ -158,7 +189,7 @@ mcp__memory__add_observations({
 uv run nash run --preset <name> --agents N --rounds N --seed N -o out.json
 
 # 扫描
-uv run nash sweep --preset <name> --param <p> --range <lo,hi,steps> --rounds N
+uv run nash sweep --config <cfg.json> --param <p> --range <MIN,MAX> --step <S> --rounds N
 
 # 验证
 uv run nash validate --data results.json --type nobel

@@ -30,12 +30,13 @@ nash-cli/
 │   ├── validators/
 │   │   ├── convergence_detector.py
 │   │   └── nobel_validator.py        — Nobel equilibrium validation
-│   └── environments/                 — 8 Nobel prize-winning game environments
+│   └── environments/                 — 9 Nobel prize-winning game environments
 │       ├── base.py                    — BaseEnvironment + ConvergenceResult
 │       ├── hawk_dove.py
 │       ├── repeated_prisoners_dilemma.py
 │       ├── public_goods.py
 │       ├── common_pool_resource.py
+│       ├── social_trust_commons.py
 │       ├── vickrey_auction.py
 │       ├── spence_signaling.py
 │       ├── two_sided_matching.py
@@ -149,9 +150,11 @@ uv run nash env info prisoners_dilemma
 uv run nash env info common_pool
 uv run nash env info spence
 uv run nash env info matching
+uv run nash env info social_trust_commons
 ```
 
-8 environments: `hawk_dove`, `repeated_prisoners_dilemma`, `public_goods`, `common_pool_resource`, `vickrey_auction`, `spence_signaling`, `two_sided_matching`, `auction_common_value`.
+9 environments: `hawk_dove`, `repeated_prisoners_dilemma`, `public_goods`, `common_pool_resource`, `social_trust_commons`, `vickrey_auction`, `spence_signaling`, `two_sided_matching`, `auction_common_value`.
+
 
 ### run — Execute simulations
 
@@ -190,6 +193,7 @@ uv run nash run --preset matching \
 | `prisoners_dilemma` | 100 | 200 | 2005 (Aumann, Schelling) |
 | `public_goods` | 100 | 200 | 2009 (Ostrom) |
 | `common_pool` | 100 | 200 | 2009 (Ostrom) |
+| `social_trust_commons` | 20 | 200 | 2009 (Ostrom) |
 | `vickrey` | 50 | 100 | 1996 (Vickrey) |
 | `spence` | 50 | 100 | 2001 (Akerlof, Spence, Stiglitz) |
 | `matching` | 50 | 100 | 2012 (Roth, Shapley) |
@@ -210,6 +214,15 @@ uv run nash run --preset matching \
 | `hawk_dove` | `num_agents` | int | 100 | [10, 500] |
 | `hawk_dove` | `resource_value` | float | 4.0 | [1.0, 20.0] |
 | `hawk_dove` | `conflict_cost` | float | 6.0 | [1.0, 30.0] |
+| `social_trust_commons` | `num_organizers` | int | 2 | [1, 500] |
+| `social_trust_commons` | `governance_strength` | float | 0.3 | [0.0, 1.0] |
+| `social_trust_commons` | `natural_repair_rate` | float | 0.03 | [0.0, 0.5] |
+| `social_trust_commons` | `stigma_drag` | float | 0.15 | [0.0, 1.0] |
+| `social_trust_commons` | `price_elasticity` | float | 1.5 | [0.1, 5.0] |
+| `social_trust_commons` | `quality_cost_coefficient` | float | 0.3 | [0.0, 2.0] |
+| `social_trust_commons` | `shock_probability` | float | 0.0 | [0.0, 0.5] |
+| `social_trust_commons` | `shock_impact` | float | 0.0 | [0.0, 500.0] |
+| `social_trust_commons` | `initial_trust` | float | 800.0 | [100.0, 2000.0] |
 
 - `--params` is optional. When omitted, defaults are used (backward compatible).
 - `--agents` remains a shortcut: if `--params` contains the corresponding count key, `--params` wins; otherwise `--agents` maps to the primary count parameter.
@@ -277,7 +290,7 @@ uv run nash config template --preset common_pool -o pool_cfg.json
 uv run nash config validate cfg.json
 ```
 
-Presets: `hawk_dove`, `prisoners_dilemma`, `public_goods`, `common_pool`, `vickrey`, `spence`, `matching`, `auction_common_value`.
+Presets: `hawk_dove`, `prisoners_dilemma`, `public_goods`, `common_pool`, `social_trust_commons`, `vickrey`, `spence`, `matching`, `auction_common_value`.
 
 ## Data Format
 
@@ -347,6 +360,16 @@ Presets: `hawk_dove`, `prisoners_dilemma`, `public_goods`, `common_pool`, `vickr
 | `delta_condition_met` | 1.0 if discount factor > theoretical threshold |
 | `spne_supported` | 1.0 if cooperation rate > 0.8 AND delta condition met |
 
+**social_trust_commons** (`social_trust_commons`):
+| Metric | Description |
+|--------|-------------|
+| `trust_depletion_rate` | Trust depletion ratio from initial to final |
+| `sustainability_index` | Composite sustainability (five-factor weighted) |
+| `price_decline_rate` | Price decline ratio from window start to end |
+| `avg_profit_health` | Profit health relative to base_price |
+| `avg_quality` | Average activity quality |
+| `avg_stigma` | Stigma stock level |
+
 ### Multi-seed batch output
 
 ```json
@@ -379,7 +402,7 @@ nash-game-theory -> nash-cli (run for testing)
 | Error | Cause | Fix |
 |-------|-------|-----|
 | `No module named 'src'` | Python path | Run from nash-cli/ root. main.py auto-adds project root to sys.path. |
-| `Unknown preset: X` | Typo | Run `env list` to see all 8 presets. |
+| `Unknown preset: X` | Typo | Run `env list` to see all 9 presets. |
 | matplotlib not installed | Missing dep | `pip install matplotlib` |
 | `No plot data available` | Data format mismatch | Use `--type all` for auto-detection. |
 | Sweep config parse error | Wrong config format | Use `config template --preset <name> -o cfg.json` first. |

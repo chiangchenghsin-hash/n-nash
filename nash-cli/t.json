@@ -1,0 +1,284 @@
+{
+  "status": "completed",
+  "preset": "social_trust_commons",
+  "environment": "social_trust_commons",
+  "environment_type": "social_trust_commons",
+  "input_params": {
+    "seed": 42,
+    "rounds": 5
+  },
+  "total_rounds": 5,
+  "converged": false,
+  "convergence_message": "数据不足，需要至少 50 轮互动",
+  "final_metrics": {
+    "trust_depletion_rate": 0,
+    "sustainability_index": 0.6824997291690228,
+    "price_decline_rate": 0,
+    "avg_quality": 0.7843974316856932,
+    "avg_stigma": 0.564594317822867,
+    "avg_profit_health": 1.0
+  },
+  "history": [
+    {
+      "round": 1,
+      "trust": 803.8957949159876,
+      "price": 7.155417527999328,
+      "quality": 0.6,
+      "stigma": 0.1808410168024721,
+      "avg_profit": 53.91655062342153
+    },
+    {
+      "round": 2,
+      "trust": 808.4196808150771,
+      "price": 7.207748682420128,
+      "quality": 0.6545668674709271,
+      "stigma": 0.3234921887127688,
+      "avg_profit": 59.01095271880794
+    },
+    {
+      "round": 3,
+      "trust": 813.2992936037703,
+      "price": 7.2686761002593725,
+      "quality": 0.6852127225497019,
+      "stigma": 0.4344139344649981,
+      "avg_profit": 61.35327222852077
+    },
+    {
+      "round": 4,
+      "trust": 818.5734123472212,
+      "price": 7.334585788483613,
+      "quality": 0.7176856719399154,
+      "stigma": 0.5138562348713297,
+      "avg_profit": 62.646340113264614
+    },
+    {
+      "round": 5,
+      "trust": 824.2474513196465,
+      "price": 7.406046792710843,
+      "quality": 0.7508587633307774,
+      "stigma": 0.564594317822867,
+      "avg_profit": 63.41244143721499
+    }
+  ],
+  "config": {
+    "environment": {
+      "type": "social_trust_commons",
+      "nobel_reference": {
+        "year": 2009,
+        "laureates": [
+          "Elinor Ostrom"
+        ],
+        "contribution": "社会信任公地悲剧 — 对平台信任与叙事资源的治理分析"
+      }
+    },
+    "parameters": {
+      "num_organizers": {
+        "value": 2,
+        "description": "组局者/活动组织者数量"
+      },
+      "initial_trust": {
+        "value": 800.0,
+        "description": "初始社会信任存量"
+      },
+      "max_trust": {
+        "value": 1000.0,
+        "description": "最大信任容量 K"
+      },
+      "natural_repair_rate": {
+        "value": 0.03,
+        "description": "自然修复率 γ"
+      },
+      "quality_positive_feedback": {
+        "value": 0.2,
+        "description": "高质量正反馈系数 β"
+      },
+      "low_quality_damage": {
+        "value": 0.4,
+        "description": "低质量活动信任伤害系数 δ"
+      },
+      "stigma_drag": {
+        "value": 0.15,
+        "description": "污名对信任的拖累系数 ξ"
+      },
+      "governance_strength": {
+        "value": 0.3,
+        "description": "平台治理强度 G"
+      },
+      "price_elasticity": {
+        "value": 1.5,
+        "description": "价格弹性系数 α"
+      },
+      "critical_trust_threshold": {
+        "value": 200.0,
+        "description": "信任临界阈值 R_crit"
+      },
+      "critical_stigma_threshold": {
+        "value": 700.0,
+        "description": "污名临界阈值 S_crit"
+      },
+      "learning_rate": {
+        "value": 0.05,
+        "description": "策略学习率"
+      },
+      "num_rounds": {
+        "value": 5
+      },
+      "base_price": {
+        "value": 10.0,
+        "description": "最大价格 p_max"
+      },
+      "base_cost": {
+        "value": 2.0,
+        "description": "基础成本 c0"
+      },
+      "quality_cost_coefficient": {
+        "value": 0.3,
+        "description": "质量成本系数 λ"
+      },
+      "penalty_coefficient": {
+        "value": 0.1,
+        "description": "惩罚成本系数 ω"
+      },
+      "shock_probability": {
+        "value": 0.0,
+        "description": "外部冲击概率"
+      },
+      "shock_impact": {
+        "value": 0.0,
+        "description": "外部冲击力度"
+      },
+      "stigma_persistence": {
+        "value": 0.85,
+        "description": "污名持久性 σ"
+      },
+      "stigma_incident_rate": {
+        "value": 0.02,
+        "description": "事件污名率 φ"
+      },
+      "initial_quality": {
+        "value": 0.6,
+        "description": "初始平均质量"
+      },
+      "initial_stigma": {
+        "value": 0.0,
+        "description": "初始污名存量"
+      }
+    },
+    "validation": {
+      "equilibrium_type": "social_trust_tragedy",
+      "metrics": [
+        {
+          "name": "trust_depletion_rate",
+          "expected_value": 0.3,
+          "tolerance": 0.3,
+          "description": "信任资源枯竭率"
+        },
+        {
+          "name": "sustainability_index",
+          "expected_value": 0.4,
+          "tolerance": 0.4,
+          "description": "组合式可持续性指数"
+        },
+        {
+          "name": "price_decline_rate",
+          "expected_value": 0.2,
+          "tolerance": 0.3,
+          "description": "价格下降率"
+        },
+        {
+          "name": "avg_profit_health",
+          "expected_value": 0.3,
+          "tolerance": 0.3,
+          "description": "利润健康度"
+        }
+      ]
+    }
+  },
+  "metrics_history": {
+    "trust_depletion_rate": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "sustainability_index": [
+      0.6449423022478814,
+      0.6540345093061498,
+      0.6632882013138626,
+      0.6727871372189409,
+      0.6824997291690228
+    ],
+    "price_decline_rate": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "avg_quality": [
+      0.6545668674709271,
+      0.6852127225497019,
+      0.7176856719399154,
+      0.7508587633307774,
+      0.7843974316856932
+    ],
+    "avg_stigma": [
+      0.1808410168024721,
+      0.3234921887127688,
+      0.4344139344649981,
+      0.5138562348713297,
+      0.564594317822867
+    ],
+    "avg_profit_health": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "trust_history": [
+    803.8957949159876,
+    808.4196808150771,
+    813.2992936037703,
+    818.5734123472212,
+    824.2474513196465
+  ],
+  "quality_history": [
+    0.6,
+    0.6545668674709271,
+    0.6852127225497019,
+    0.7176856719399154,
+    0.7508587633307774
+  ],
+  "stigma_history": [
+    0.1808410168024721,
+    0.3234921887127688,
+    0.4344139344649981,
+    0.5138562348713297,
+    0.564594317822867
+  ],
+  "price_history": [
+    7.155417527999328,
+    7.207748682420128,
+    7.2686761002593725,
+    7.334585788483613,
+    7.406046792710843
+  ],
+  "profit_history": [
+    53.91655062342153,
+    59.01095271880794,
+    61.35327222852077,
+    62.646340113264614,
+    63.41244143721499
+  ],
+  "equilibrium_type": "transitioning",
+  "health_status": "uncertain",
+  "warning_flags": [],
+  "breakpoints": {
+    "price_breakpoint": null,
+    "ecological_breakpoint": null,
+    "collapse_breakpoint": null
+  }
+}

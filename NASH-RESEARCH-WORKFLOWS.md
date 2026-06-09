@@ -1,5 +1,8 @@
 # NASH Research Workflows
 
+> **架构版本：v2**（动态原语装配引擎 + Skills v2 重写）
+> 适用 Skill 版本：nash-env v2、nash-run v2、nash-analyze v2、nash-game-theory v2、nash-cli
+
 共享工作流模式参考文档。供 `nash-env`、`nash-run`、`nash-analyze` 三个技能共同引用。
 
 ---
@@ -15,11 +18,25 @@ nash-env（分类问题） → nash-run（执行模拟） → nash-analyze（验
 
 ### 步骤
 
-**Step 1 — 问题匹配 (nash-env)**
+**Step 1 — 问题解构 (nash-env v2)**
+
 1. 与用户讨论研究问题，明确需要建模的经济/社会现象。
-2. 调用 `uv run nash env list` 列出所有可用环境。
-3. 调用 `uv run nash env info <game>` 获取候选环境的详细参数与 Nobel 参考。
-4. 向用户推荐 1-3 个匹配的环境，说明选择理由，等待用户确认。
+2. **提取 14 维特征向量**（非直接选环境）：
+   - 信息结构：information_asymmetry、adverse_selection_risk
+   - 时间结构：time_horizon_rigidity、repetition_potential
+   - 激励结构：incentive_misalignment、moral_hazard_potential
+   - 资源/公地：commons_character、public_goods_character、resource_type
+   - 网络/扩散：threshold_diffusion_risk、network_density
+   - 治理/制度：governance_presence、institutional_layering、exit_cost
+   - 冲突/协调：conflict_intensity、coordination_need
+   - 信任/声誉：trust_sensitivity、stigma_potential
+3. **原语激活**：`PrimitiveLibrary.activate(fv)` 返回匹配的原语及激活原因。
+4. **约束编译**：确认状态空间、单调性、相变边界无矛盾。
+5. 向用户推荐 1-3 个匹配的 preset 环境，**附特征向量得分和激活理由**，等待用户确认。
+   - 辅助：调用 `uv run nash env list` 列出所有可用环境
+   - 辅助：调用 `uv run nash env info <game>` 获取候选环境的详细参数与 Nobel 参考
+
+> ⚠️ v2 禁止旧式模板匹配（如"看到冲突→hawk_dove"）。必须先解构特征，再激活原语，最后映射到可执行环境。
 
 **Step 2 — 实验执行 (nash-run)**
 1. 根据用户确认的环境和参数，调用 `uv run nash run --preset <name> --seed 42 -o results.json`。
@@ -30,11 +47,15 @@ nash-env（分类问题） → nash-run（执行模拟） → nash-analyze（验
    ```
 3. 如需参数探索，用 sweep 替代单次运行（见模式 3）。
 
-**Step 3 — 结果解读 (nash-analyze)**
-1. 读取 validation.json，提取 Nobel 验证结论和置信度。
+**Step 3 — 结果解读 (nash-analyze v2)**
+1. 读取 validation.json，提取 Nobel 验证结论和置信度（>0.9 强支持 / 0.7-0.9 中等 / <0.7 弱）。
 2. 查看 charts.png，交叉验证视觉趋势和统计结论。
-3. 用自然语言向用户解释：收敛情况、与 Nobel 预测的一致性、实际含义。
-4. **主动建议下一步**："要不要换个参数看看？" "要不要和多环境对比？"
+3. **原语组成识别**：识别结果中哪些原语驱动了核心行为。
+4. **贡献分解**：拆解各机制对关键指标的贡献占比（如 social_trust_commons 中：自然修复 / 质量正反馈 / 低质量损耗 / 污名拖累 / 外部冲击）。
+5. **断裂点时间线**（social_trust_commons 专用）：标记信任崩塌、质量塌缩、价格归零三类断裂点。
+6. **结论强度标注**：每条结论标注为 `模型支持`（方程可推导）/ `启发式解释`（方向正确但非精确量化）/ `评论性隐喻`（语言类比）。
+7. 用自然语言向用户解释：收敛情况、与 Nobel 预测的一致性、实际含义。
+8. **主动建议下一步**："要不要换个参数看看？" "要不要和多环境对比？"
 
 ### 人机讨论闸门
 | 闸门 | 位置 | 讨论内容 |
@@ -133,7 +154,13 @@ Agent({description: "Sweep part 4",
 
 ### 步骤
 1. 与用户确认配置。
-2. **并行执行 5 个种子（一条消息全部启动）：**
+2. **使用 `--seeds` 批量执行（一条命令完成 5 个种子）：**
+   ```bash
+   uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seeds '42,123,456,789,1024' -o batch_results.json
+   ```
+   输出 JSON 包含 `per_seed_results` 数组，每个元素含 `seed` 和 `final_metrics`。
+
+   **备选：单独执行各种子（更灵活，适合不同参数）：**
    ```bash
    Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 42 -o s42.json
    Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 123 -o s123.json
@@ -143,6 +170,18 @@ Agent({description: "Sweep part 4",
    ```
 3. 汇总计算 mean ± std：
    ```bash
+   # --seeds 批量模式（单文件）
+   python -c "
+   import json, numpy as np
+   data = json.load(open('batch_results.json'))
+   seeds = [r['final_metrics'] for r in data['per_seed_results']]
+   for k in seeds[0].keys():
+       vals = [s[k] for s in seeds]
+       cv = np.std(vals) / (abs(np.mean(vals)) + 1e-9)
+       print(f'{k}: {np.mean(vals):.4f} ± {np.std(vals):.4f} (CV: {cv:.1%})')
+   "
+
+   # 单独种子模式（多文件）
    python -c "
    import json, glob, numpy as np
    seeds = [json.load(open(f))['final_metrics'] for f in sorted(glob.glob('s*.json'))]
@@ -228,27 +267,28 @@ mcp__memory__search_nodes({"query": "p < 0.01 的显著结果"})
 与用户精确定义假设：自变量、因变量、方向预测。用 `uv run nash env info` 确认环境支持。持久化到记忆：`H: "如果引入惩罚，那么 sustainability_index 将上升"`。
 
 **Phase 2 — 设计实验**
-设计控制组和实验组配置。
+设计控制组和实验组。使用 `--params` 注入差异参数：
 ```bash
-uv run nash config template --preset common_pool -o ctrl_cfg.json
-uv run nash config template --preset common_pool -o treat_cfg.json
-# 编辑 treat_cfg.json 添加实验变量
+# 查看 common_pool 默认参数
+uv run nash env info common_pool
+# 控制组：默认参数（无惩罚）
+# 实验组：通过 --params 注入惩罚相关参数
 ```
 
 **Phase 3 — 并行运行两组各 5 个种子（10 个模拟同时启动）**
 ```bash
-# 控制组
-Bash: uv run nash run --config ctrl_cfg.json --seed 42 -o ctrl_s42.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 43 -o ctrl_s43.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 44 -o ctrl_s44.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 45 -o ctrl_s45.json
-Bash: uv run nash run --config ctrl_cfg.json --seed 46 -o ctrl_s46.json
-# 实验组
-Bash: uv run nash run --config treat_cfg.json --seed 42 -o treat_s42.json
-Bash: uv run nash run --config treat_cfg.json --seed 43 -o treat_s43.json
-Bash: uv run nash run --config treat_cfg.json --seed 44 -o treat_s44.json
-Bash: uv run nash run --config treat_cfg.json --seed 45 -o treat_s45.json
-Bash: uv run nash run --config treat_cfg.json --seed 46 -o treat_s46.json
+# 控制组（默认参数）
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 42 -o ctrl_s42.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 43 -o ctrl_s43.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 44 -o ctrl_s44.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 45 -o ctrl_s45.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 46 -o ctrl_s46.json
+# 实验组（注入惩罚参数）
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 42 --params '{"punishment_strength": 0.5}' -o treat_s42.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 43 --params '{"punishment_strength": 0.5}' -o treat_s43.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 44 --params '{"punishment_strength": 0.5}' -o treat_s44.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 45 --params '{"punishment_strength": 0.5}' -o treat_s45.json
+Bash: uv run nash run --preset common_pool --agents 50 --rounds 200 --seed 46 --params '{"punishment_strength": 0.5}' -o treat_s46.json
 ```
 
 **Phase 4 — 统计分析**
@@ -367,10 +407,88 @@ mcp__memory__create_relations({
 
 ---
 
+## 模式 9：原语驱动研究（v2 新增）
+
+### 何时使用
+用户的问题不能用单一 preset 环境直接回答，需要组合多个原语（如"社交平台信任崩塌涉及信息不对称 + 公地悲剧 + 重复博弈"）。
+
+### 步骤
+
+**Step 1 — 特征向量提取 (nash-env)**
+```
+对案例文本做 14 维评分：
+  information_asymmetry=0.7  (社交平台存在信息不对称)
+  commons_character=0.8      (信任是公地资源)
+  repetition_potential=0.8   (长期重复互动)
+  trust_sensitivity=0.9      (对信任高度敏感)
+  stigma_potential=0.6       (污名化可能)
+  ...
+```
+
+**Step 2 — 原语激活与耦合规划**
+```
+PrimitiveLibrary.activate(fv) 返回：
+  ✅ social_trust_commons (主原语, commons_character=0.8 激活)
+  ✅ spence_signaling     (辅原语, information_asymmetry=0.7 激活)
+  ✅ repeated_prisoners_dilemma (辅原语, repetition_potential=0.8 激活)
+
+约束编译：
+  CouplingGraph: trust_commons ←→ signaling (series: 信号质量 → 信任修复)
+  SymbolicAuditor: 无符号矛盾 ✅
+```
+
+**Step 3 — 选择执行路径**
+
+| 情况 | 执行路径 |
+|------|---------|
+| 主原语有对应 preset | `uv run nash run --preset social_trust_commons --params '...'` |
+| 需要纯原语组合（无 preset） | `python -c "from src.primitive_pipeline import PrimitivePipeline; ..."` |
+
+**Step 4 — 运行时约束监测**
+运行过程中关注 SymbolicAuditor 告警：
+- 单调性违反 → 参数需要调整
+- 相变边界接近 → 可能出现断裂点
+- 耦合强度过大 → 数值不稳定
+
+**Step 5 — 分析时标注结论来源**
+```
+结论示例：
+  "信任低于 R_crit 时价格归零" → 模型支持（来自 social_trust_commons F4 方程）
+  "信号投资与信任恢复正相关"  → 启发式解释（spence_signaling + trust_commons 耦合推导）
+  "平台治理类似政府干预"       → 评论性隐喻（无直接方程支撑）
+```
+
+### Agent Team 增强：原语耦合审查
+```
+Agent({description: "耦合一致性审查",
+       prompt: "检查以下原语组合的耦合一致性：
+                主原语: social_trust_commons
+                辅原语: spence_signaling, repeated_prisoners_dilemma
+                1. 状态空间是否有变量冲突（同名不同义）？
+                2. 单调性规则是否相互矛盾？
+                3. 耦合图的环路是否会导致数值发散？"})
+
+
+
+                六个机制，分配到对应技能：
+
+机制	嵌入位置	原因
+举证锚定	nash-env Step 1 后	特征打分必须有事实依据
+对抗检查点	nash-env Step 3 后	原语选择完立刻试图反驳
+缺失声明	nash-env Step 5	输出模型时必须列明解释不了什么
+预注册	nash-run 运行前	先声明预期，跑完对比
+反决策测试	nash-analyze 结论后	什么事实会让结论反转
+惊喜审计	nash-analyze 综合后	预期 vs 实际对比
+```
+
+---
+
 ## 技能使用速查表
 
 | 用户意图 | 技能 | 核心命令 | Agent Team 增强 |
 |----------|------|----------|----------------|
+| 解构案例特征 | nash-env v2 | 14 维特征向量评分 | 并行子代理研究候选原语 |
+| 激活原语组合 | nash-env v2 | `PrimitiveLibrary.activate(fv)` | 耦合一致性审查 |
 | 查看可用博弈模型 | nash-env | `uv run nash env list` | 并行子代理研究所有候选 |
 | 了解某个博弈机制 | nash-env | `uv run nash env info <game>` | 多角度源码解读 |
 | 运行单次模拟 | nash-run | `uv run nash run --preset <name>` | 自动 validate+viz 跟进 |
@@ -378,16 +496,19 @@ mcp__memory__create_relations({
 | 多模型对比 | nash-run | 并行 run × N | Agent team 多视角解读 |
 | 统计验证 | nash-analyze | `uv run nash validate --type statistical` | 多方统计审查 |
 | Nobel 基准验证 | nash-analyze | `uv run nash validate --type nobel` | Agent team 解读差异 |
+| 贡献分解分析 | nash-analyze v2 | 读取结果 JSON 分解各机制贡献 | 多视角归因审查 |
+| 结论强度标注 | nash-analyze v2 | 标注 `模型支持` / `启发式` / `评论性` | 结论可靠性交叉验证 |
 | 生成图表 | nash-analyze | `uv run nash viz --data <file> --type <type>` | 多图表并行生成 |
 | 政策建议 | nash-analyze | 共识团队模式 | 4 角色共识决策 |
 | 长期研究 | 全部 | 记忆持久化 + 关系图谱 | 跨会话知识积累 |
+| 原语驱动研究 | nash-env v2 + nash-run | 特征向量 → 原语激活 → 约束编译 → 仿真 | 耦合审查 + 多视角解读 |
 
 ---
 
 ## 引用链接
 
-- [[nash-cli]] — CLI 执行引擎
-- [[nash-env]] — 博弈环境目录与探索
-- [[nash-run]] — 模拟执行引擎
-- [[nash-analyze]] — 统计验证与可视化
-- [[nash-game-theory]] — 自定义博弈环境创建
+- [[nash-cli]] — CLI 执行引擎（`--preset`, `--params`, `--seeds`, `--config`(仅 sweep)）
+- [[nash-env]] — v2 特征向量解构 + 原语激活规划器
+- [[nash-run]] — 模拟执行引擎（含约束校验前置要求）
+- [[nash-analyze]] — v2 统计验证 + 贡献分解 + 结论强度标注
+- [[nash-game-theory]] — v2 原语模块创建（Typed PrimitiveSpec + 耦合规则）

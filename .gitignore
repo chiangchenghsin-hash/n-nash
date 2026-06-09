@@ -32,6 +32,7 @@ _smoke_*.png
 # IDE
 .vscode/
 .idea/
+.gitnexus/
 .DS_Store
 Thumbs.db
 

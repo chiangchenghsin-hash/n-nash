@@ -85,7 +85,12 @@ def _run_single(spec, args, extra_params: dict) -> dict:
     result = env.run_simulation(max_rounds=args.rounds)
     print(f"[nash] Converged: {result['converged']}", file=sys.stderr)
 
-    return {
+    # 透传环境返回的所有字段（适配各环境的扩展输出）
+    _reserved = {
+        "environment_type", "total_rounds", "converged",
+        "convergence_message", "final_metrics", "history",
+    }
+    output = {
         "status": "completed",
         "preset": spec.short_id,
         "environment": spec.short_id,
@@ -98,6 +103,10 @@ def _run_single(spec, args, extra_params: dict) -> dict:
         "history": result["history"],
         "config": run_config,
     }
+    for key, value in result.items():
+        if key not in _reserved and key not in output:
+            output[key] = value
+    return output
 
 
 def _run_multi_seed(spec, args, extra_params: dict, seeds: list) -> dict:
@@ -112,12 +121,23 @@ def _run_multi_seed(spec, args, extra_params: dict, seeds: list) -> dict:
         env = spec.env_class(run_config)
         result = env.run_simulation(max_rounds=args.rounds)
 
-        per_seed_results.append({
+        seed_entry = {
             "seed": seed,
             "converged": result["converged"],
             "total_rounds": result["total_rounds"],
             "final_metrics": result["final_metrics"],
-        })
+        }
+        # 透传环境扩展字段到每个 seed 的条目
+        _extended_keys = {
+            "metrics_history", "history", "breakpoints",
+            "trust_history", "quality_history", "stigma_history",
+            "price_history", "profit_history",
+            "equilibrium_type", "health_status", "warning_flags",
+        }
+        for key in _extended_keys:
+            if key in result:
+                seed_entry[key] = result[key]
+        per_seed_results.append(seed_entry)
 
     aggregated_metrics = _aggregate_metrics(per_seed_results)
 
