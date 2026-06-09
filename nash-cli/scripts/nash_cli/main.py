@@ -88,6 +88,12 @@ def main():
                        default="all")
     p_viz.add_argument("--output", "-o", type=str, help="Output image path (PNG)")
 
+    # -- stability --
+    p_stab = sub.add_parser("stability", help="Numerical stability validation (M7)")
+    p_stab.add_argument("--data", type=str, help="Path to simulation results JSON (use --seeds output for best results)")
+    p_stab.add_argument("--preset", type=str, help="Environment preset name (for boundary checks with single-seed data)")
+    p_stab.add_argument("--sweep", type=str, help="Path to sweep results JSON (cross-parameter stability)")
+
     # -- config --
     p_cfg = sub.add_parser("config", help="Environment config helpers")
     p_cfg_sub = p_cfg.add_subparsers(dest="config_action", required=True)
@@ -134,6 +140,9 @@ def _dispatch(args) -> dict:
     elif cmd == "config":
         from scripts.nash_cli.commands.config_cmd import cmd_config
         return cmd_config(args)
+    elif cmd == "stability":
+        from scripts.nash_cli.commands.stability import cmd_stability
+        return cmd_stability(args)
 
     return {"error": f"Unknown command: {cmd}"}
 

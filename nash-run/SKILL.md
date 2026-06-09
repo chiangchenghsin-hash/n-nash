@@ -102,6 +102,14 @@ uv run nash run --preset social_trust_commons --rounds 400 --seed 42 \
 # 同时启动（同一消息中）：
 Bash: uv run nash validate --data results.json --type nobel -o validation.json
 Bash: uv run nash viz --data results.json --type all -o charts.png
+Bash: uv run nash stability --data results.json --preset <preset>
+```
+
+对于多 seed 结果，验证 + 稳定性检查：
+```bash
+Bash: uv run nash validate --data multi_seed.json --type nobel -o validation.json
+Bash: uv run nash viz --data multi_seed.json --type all -o charts.png
+Bash: uv run nash stability --data multi_seed.json
 ```
 
 ## 参数卡模板（运行前展示）
@@ -130,7 +138,10 @@ Bash: uv run nash viz --data results.json --type all -o charts.png
   ✅ 相变边界: R < 200 时价格归零逻辑已就绪
 
 稳定性风险: LOW — 推荐先单 seed 验证，再 5-seed 复现
+  运行后可执行: uv run nash stability --data results.json
 ```
+
+**运行后必须调用 `nash stability`**（M7）以确保结果不是单组幸运参数的巧合。参见 [[nash-cli]] `stability` 命令。
 
 ## 参数扫描
 
@@ -163,6 +174,9 @@ Bash: uv run nash run --preset prisoners_dilemma --rounds 300 --seed 42 -o pd.js
 
 ```bash
 uv run nash run --preset social_trust_commons --rounds 300 --seeds 42,123,456,789,1024 -o multi_seed.json
+
+# 运行后验证稳定性
+uv run nash stability --data multi_seed.json
 ```
 
 ## 记忆持久化

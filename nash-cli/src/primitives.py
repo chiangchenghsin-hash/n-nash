@@ -518,19 +518,27 @@ class StabilityValidator:
     """M7: 数值稳定验证器
 
     保证生成的方程不是"只能在一组幸运参数下跑起来"。
+
+    实际实现在 src/stability_validator.py。
+    本类保留为薄兼容层 — 所有方法委托到 _StabilityValidatorImpl。
     """
 
     @staticmethod
     def check_step_size_sensitivity(
-        simulate_fn: Callable[[float], List[float]],  # dt -> time_series
+        simulate_fn: Callable[[float], List[float]],
         dt_values: List[float] = None,
     ) -> float:
         """多步长回放：检查步长敏感性"""
-        if dt_values is None:
-            dt_values = [0.01, 0.05, 0.1, 0.5]
-        # 简化实现：返回占位值
-        # 实际使用需要 simulate_fn 返回可比较的时间序列
-        return 0.0
+        from src.stability_validator import StabilityValidator as _Impl
+        kwargs = {}
+        if dt_values is not None:
+            kwargs["dt_values"] = dt_values
+        validator = _Impl(**kwargs)
+        # 适配：simulate_fn 返回 List[float]（时间序列）→ 提取最后值作为指标快照
+        def _adapted(dt: float) -> Dict[str, float]:
+            ts = simulate_fn(dt)
+            return {"final_value": ts[-1] if ts else 0.0}
+        return validator.check_step_size_sensitivity(_adapted)
 
     @staticmethod
     def check_perturbation_sensitivity(
@@ -538,10 +546,16 @@ class StabilityValidator:
         perturbed_results: List[Dict[str, Any]],
     ) -> float:
         """小扰动敏感性分析"""
-        if not perturbed_results:
-            return 0.0
-        # 检查关键指标在扰动下的变化
-        return 0.0
+        from src.stability_validator import StabilityValidator as _Impl
+        validator = _Impl()
+        # Coerce to Dict[str, float]
+        base_metrics = {k: float(v) for k, v in base_result.items()
+                        if isinstance(v, (int, float))}
+        perturbed_metrics = [
+            {k: float(v) for k, v in pr.items() if isinstance(v, (int, float))}
+            for pr in perturbed_results
+        ]
+        return validator.check_perturbation_sensitivity(base_metrics, perturbed_metrics)
 
     @staticmethod
     def check_boundary_conditions(
@@ -549,11 +563,8 @@ class StabilityValidator:
         declarations: List[VariableDecl],
     ) -> Tuple[bool, List[str]]:
         """边界条件回放"""
-        warnings = []
-        for decl in declarations:
-            if decl.must_be_nonnegative and state.get(decl.name, 0) < 0:
-                warnings.append(f"{decl.name} is negative at boundary")
-        return len(warnings) == 0, warnings
+        from src.stability_validator import StabilityValidator as _Impl
+        return _Impl.check_boundary_conditions(state, declarations)
 
 
 # ============================================================================

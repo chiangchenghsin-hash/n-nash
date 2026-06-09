@@ -45,6 +45,26 @@ Bash: uv run nash validate --data results.json --type nobel -o validation.json
 Bash: uv run nash viz --data results.json --type all -o charts.png
 ```
 
+### Step 1.5 — 数值稳定性验证 (M7)
+
+对多 seed 结果：
+```bash
+uv run nash stability --data results.json
+```
+
+对有 `--preset` 的单 seed 结果：
+```bash
+uv run nash stability --data results.json --preset <preset>
+```
+
+解读 stability 字段：
+| stability_level | 含义 | 行动 |
+|-----------------|------|------|
+| `high` | 跨种子指标高度一致 (噪声 < 2% domain) | 结论稳健，可引用 |
+| `medium` | 可接受波动 (噪声 < 5% domain) | 结论方向可信，不宜做精确量化 |
+| `low` | 显著初值敏感 | 增加种子数到 ≥10，检查参数悬崖 |
+| `unstable` | 跨种子结论不可信 | 模型需修正——检查方程刚性/参数范围 |
+
 ### Step 2 — 读取并交叉验证
 
 读取 `validation.json` 和 `charts.png`，检查二者是否一致。
@@ -204,6 +224,9 @@ mcp__memory__add_observations({
 uv run nash validate --data <file> --type nobel
 uv run nash validate --data <file> --type both -o report.json
 uv run nash viz --data <file> --type all -o charts.png
+uv run nash stability --data <file>                         # multi-seed
+uv run nash stability --data <file> --preset <preset>       # single-seed + boundary check
+uv run nash stability --sweep <sweep.json>                  # sweep-based
 ```
 
 ## 交叉引用

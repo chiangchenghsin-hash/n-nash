@@ -40,17 +40,19 @@ nash-env（分类问题） → nash-run（执行模拟） → nash-analyze（验
 
 **Step 2 — 实验执行 (nash-run)**
 1. 根据用户确认的环境和参数，调用 `uv run nash run --preset <name> --seed 42 -o results.json`。
-2. **立即并行启动 validate + viz**（不等用户要求）：
+2. **立即并行启动 validate + viz + stability**（不等用户要求）：
    ```bash
    Bash: uv run nash validate --data results.json --type nobel -o validation.json
    Bash: uv run nash viz --data results.json --type all -o charts.png
+   Bash: uv run nash stability --data results.json --preset <name>
    ```
 3. 如需参数探索，用 sweep 替代单次运行（见模式 3）。
 
 **Step 3 — 结果解读 (nash-analyze v2)**
 1. 读取 validation.json，提取 Nobel 验证结论和置信度（>0.9 强支持 / 0.7-0.9 中等 / <0.7 弱）。
 2. 查看 charts.png，交叉验证视觉趋势和统计结论。
-3. **原语组成识别**：识别结果中哪些原语驱动了核心行为。
+3. **数值稳定性检查**: 如使用了 `--seeds`，运行 `uv run nash stability --data results.json` 获取 M7 稳定性报告。
+4. **原语组成识别**：识别结果中哪些原语驱动了核心行为。
 4. **贡献分解**：拆解各机制对关键指标的贡献占比（如 social_trust_commons 中：自然修复 / 质量正反馈 / 低质量损耗 / 污名拖累 / 外部冲击）。
 5. **断裂点时间线**（social_trust_commons 专用）：标记信任崩塌、质量塌缩、价格归零三类断裂点。
 6. **结论强度标注**：每条结论标注为 `模型支持`（方程可推导）/ `启发式解释`（方向正确但非精确量化）/ `评论性隐喻`（语言类比）。
@@ -80,12 +82,16 @@ nash-env（分类问题） → nash-run（执行模拟） → nash-analyze（验
    Bash: uv run nash run --preset public_goods --agents 100 --rounds 200 --seed 42 -o compare_pg.json
    Bash: uv run nash run --preset common_pool --agents 100 --rounds 200 --seed 42 -o compare_cp.json
    ```
-3. **等待全部完成 → 所有 validate 并行：**
+3. **等待全部完成 → 所有 validate + stability 并行：**
    ```bash
    Bash: uv run nash validate --data compare_hd.json --type nobel
    Bash: uv run nash validate --data compare_pd.json --type nobel
    Bash: uv run nash validate --data compare_pg.json --type nobel
    Bash: uv run nash validate --data compare_cp.json --type nobel
+   Bash: uv run nash stability --data compare_hd.json --preset hawk_dove
+   Bash: uv run nash stability --data compare_pd.json --preset prisoners_dilemma
+   Bash: uv run nash stability --data compare_pg.json --preset public_goods
+   Bash: uv run nash stability --data compare_cp.json --preset common_pool
    ```
 4. **生成对比表并呈现。**
 
@@ -168,7 +174,14 @@ Agent({description: "Sweep part 4",
    Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 789 -o s789.json
    Bash: uv run nash run --preset hawk_dove --agents 100 --rounds 200 --seed 1024 -o s1024.json
    ```
-3. 汇总计算 mean ± std：
+3. **运行 M7 数值稳定性验证（替代手动 CV 计算）：**
+   ```bash
+   uv run nash stability --data batch_results.json
+   ```
+   输出: `stability_level`, `perturbation_sensitivity`, `bifurcation_risk`, `warnings`, `recommendations`。
+   敏感性 = max(std/domain_width) 跨所有指标 → 客观归一化。
+
+4. **手动汇总 mean ± std（可选，用于自定义分析）：**
    ```bash
    # --seeds 批量模式（单文件）
    python -c "
@@ -191,7 +204,8 @@ Agent({description: "Sweep part 4",
        print(f'{k}: {np.mean(vals):.4f} ± {np.std(vals):.4f} (CV: {cv:.1%})')
    "
    ```
-4. 报告：CV < 10% → 结果稳健；CV >= 10% → 需增加种子或轮次。
+4. 报告: CV < 10% → 结果稳健; CV >= 10% → 需增加种子或轮次。
+   **优先使用 `nash stability` 输出。**
 
 ### 记忆持久化
 保存汇总统计 + 所有原始文件路径。创建 `reproducibility_report` 实体。
@@ -491,11 +505,12 @@ Agent({description: "耦合一致性审查",
 | 激活原语组合 | nash-env v2 | `PrimitiveLibrary.activate(fv)` | 耦合一致性审查 |
 | 查看可用博弈模型 | nash-env | `uv run nash env list` | 并行子代理研究所有候选 |
 | 了解某个博弈机制 | nash-env | `uv run nash env info <game>` | 多角度源码解读 |
-| 运行单次模拟 | nash-run | `uv run nash run --preset <name>` | 自动 validate+viz 跟进 |
+| 运行单次模拟 | nash-run | `uv run nash run --preset <name>` | 自动 validate+viz+stability 跟进 |
 | 参数扫描 | nash-run | `uv run nash sweep --config cfg.json ...` | 子代理拆分大范围扫描 |
 | 多模型对比 | nash-run | 并行 run × N | Agent team 多视角解读 |
 | 统计验证 | nash-analyze | `uv run nash validate --type statistical` | 多方统计审查 |
 | Nobel 基准验证 | nash-analyze | `uv run nash validate --type nobel` | Agent team 解读差异 |
+| 数值稳定性检查 (M7) | nash-analyze | `uv run nash stability --data <file>` | 多种子 CV + 步长敏感性 |
 | 贡献分解分析 | nash-analyze v2 | 读取结果 JSON 分解各机制贡献 | 多视角归因审查 |
 | 结论强度标注 | nash-analyze v2 | 标注 `模型支持` / `启发式` / `评论性` | 结论可靠性交叉验证 |
 | 生成图表 | nash-analyze | `uv run nash viz --data <file> --type <type>` | 多图表并行生成 |
@@ -507,8 +522,8 @@ Agent({description: "耦合一致性审查",
 
 ## 引用链接
 
-- [[nash-cli]] — CLI 执行引擎（`--preset`, `--params`, `--seeds`, `--config`(仅 sweep)）
+- [[nash-cli]] — CLI 执行引擎（`--preset`, `--params`, `--seeds`, `--config`(仅 sweep), `stability`）
 - [[nash-env]] — v2 特征向量解构 + 原语激活规划器
-- [[nash-run]] — 模拟执行引擎（含约束校验前置要求）
-- [[nash-analyze]] — v2 统计验证 + 贡献分解 + 结论强度标注
+- [[nash-run]] — 模拟执行引擎（含约束校验前置要求 + M7 稳定性要求）
+- [[nash-analyze]] — v2 统计验证 + 贡献分解 + 结论强度标注 + M7 稳定性验证
 - [[nash-game-theory]] — v2 原语模块创建（Typed PrimitiveSpec + 耦合规则）

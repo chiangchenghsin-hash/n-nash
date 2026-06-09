@@ -272,6 +272,26 @@ uv run nash validate --data results.json --type nobel
 uv run nash validate --data results.json --type both -o validation_report.json
 ```
 
+### stability — Numerical stability validation (M7)
+
+```bash
+# Primary: multi-seed perturbation sensitivity (≥3 seeds recommended)
+uv run nash stability --data multi_seed.json
+
+# Single-seed boundary check (supply --preset for domain-aware validation)
+uv run nash stability --data results.json --preset social_trust_commons
+
+# Sweep-based cross-parameter stability
+uv run nash stability --sweep sweep_results.json
+```
+
+Output fields: `stable`, `stability_level` (high/medium/low/unstable), `perturbation_sensitivity`, `step_size_sensitivity`, `boundary_safe`, `bifurcation_risk`, `warnings`, `recommendations`.
+
+Stability is assessed by **std / domain_width** (from `PrimitiveSpec.state_variables`) with MAD/median fallback — never hardcoded thresholds:
+- `< 0.02` of domain → high (measurement-noise level)
+- `< 0.05` of domain → medium (acceptable for socio-economic models)
+- `> 0.05` → low or unstable (initial-condition sensitive / parameter cliff)
+
 ### viz — Generate charts
 
 ```bash
@@ -411,5 +431,5 @@ nash-game-theory -> nash-cli (run for testing)
 
 - [[nash-env]] — uses env list/info to classify problems
 - [[nash-run]] — uses run/sweep/config to execute experiments
-- [[nash-analyze]] — uses validate/viz to analyze results
+- [[nash-analyze]] — uses validate/viz/stability to analyze results
 - [[nash-game-theory]] — uses run to test new environments
